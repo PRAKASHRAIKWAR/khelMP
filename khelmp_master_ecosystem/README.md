@@ -21,9 +21,9 @@ Open `http://127.0.0.1:8000/`.
 
 ## Deploy the Django Frontend to Render
 
-Create a new Blueprint in Render using this repository and its root `render.yaml`. It provisions the Django web service and a persistent PostgreSQL database; the web service builds static assets and applies Django migrations during deployment. The web service uses Render's free plan, which may spin down while idle. The PostgreSQL database uses Render's lowest paid plan, so review its current price in Render before deploying.
+Create a new Blueprint in Render using this repository and its root `render.yaml`. It provisions a free Django web service and a free PostgreSQL database; the web service builds static assets and applies Django migrations during deployment. The web service may spin down while idle. Render's free PostgreSQL database expires 30 days after creation and its data is eventually deleted, so this is only for a temporary demo. Do not use it for important user data.
 
-After the first deploy, create a Django administrator from the web service's Shell using `python manage.py createsuperuser`. Configure `GEMINI_API_KEY`, Twilio credentials, and SMTP settings in the Render dashboard if those features are needed. Do not copy real credentials into `.env.example` or commit them. Existing local SQLite data and uploaded media are not migrated by this setup; configure persistent object storage before relying on production uploads.
+Configure `GEMINI_API_KEY`, Twilio credentials, and SMTP settings in the Render dashboard if those features are needed. Do not copy real credentials into `.env.example` or commit them. Existing local SQLite data and uploaded media are not migrated by this setup; configure persistent object storage before relying on uploads.
 
 ## Start the API and PostgreSQL
 

@@ -23,6 +23,6 @@ databases:
   - name: khelmp-db
     databaseName: khelmp
     user: khelmp
-    plan: basic-256mb
+    plan: free
     region: singapore
     postgresMajorVersion: "16"
