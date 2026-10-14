@@ -1,11 +1,15 @@
 from io import BytesIO
 import os
+import re
+import smtplib
+from datetime import timedelta
 from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
 from django.contrib import admin, messages
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.test.client import RequestFactory
 from django.contrib.messages.storage.fallback import FallbackStorage
@@ -15,7 +19,7 @@ from PIL import Image
 from unittest.mock import patch
 
 from .admin import SelectorApplicationAdmin
-from .models import AccountProfile, Athlete, AthletePost, AthleteResult, AIPerformanceClaim, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
+from .models import AccountProfile, Athlete, AthletePost, AthleteResult, AIPerformanceClaim, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 
 
 User = get_user_model()
@@ -447,6 +451,115 @@ class LoginIdentifierTests(TestCase):
         self.assertTrue(self.user.check_password('NewSecurePassword2026!'))
 
 
+@override_settings(
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    EMAIL_HOST_USER='sender@gmail.com',
+    EMAIL_HOST_PASSWORD='test-app-password',
+    DEFAULT_FROM_EMAIL='sender@gmail.com',
+)
+class EmailOTPTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        mail.outbox.clear()
+
+    def create_user(self, email='email-player@example.com', active=True):
+        return User.objects.create_user(
+            username='email-otp-player',
+            email=email,
+            password='Test-Only-Password-2026!',
+            is_active=active,
+        )
+
+    def request_code(self, email='email-player@example.com'):
+        return self.client.post('/otp/email/send/', {'email': email})
+
+    def test_registered_user_can_sign_in_with_hashed_one_time_email_otp(self):
+        user = self.create_user()
+        sent = self.request_code()
+        self.assertEqual(sent.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        code = re.search(r'\b(\d{6})\b', mail.outbox[0].body).group(1)
+        challenge = EmailOTP.objects.get(email=user.email)
+        self.assertNotEqual(challenge.code_hash, code)
+        self.assertNotIn(code, sent.content.decode())
+
+        response = self.client.post('/login/', {
+            'auth_method': 'email_otp',
+            'email': user.email,
+            'email_otp': code,
+        })
+
+        self.assertRedirects(response, '/feed/')
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+        challenge.refresh_from_db()
+        self.assertIsNotNone(challenge.consumed_at)
+
+    def test_unknown_and_registered_emails_get_same_send_response(self):
+        self.create_user()
+        registered = self.request_code()
+        cache.clear()
+        unknown = self.request_code('unknown@example.com')
+
+        self.assertEqual(registered.status_code, unknown.status_code)
+        self.assertEqual(registered.json()['message'], unknown.json()['message'])
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_email_otp_send_is_rate_limited(self):
+        self.create_user()
+        first = self.request_code()
+        second = self.request_code()
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_expired_email_otp_cannot_sign_in(self):
+        user = self.create_user()
+        self.request_code()
+        challenge = EmailOTP.objects.get(email=user.email)
+        challenge.expires_at = timezone.now() - timedelta(seconds=1)
+        challenge.save(update_fields=('expires_at',))
+        code = re.search(r'\b(\d{6})\b', mail.outbox[0].body).group(1)
+
+        response = self.client.post('/login/', {
+            'auth_method': 'email_otp',
+            'email': user.email,
+            'email_otp': code,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_email_otp_allows_at_most_five_incorrect_attempts(self):
+        user = self.create_user()
+        self.request_code()
+        challenge = EmailOTP.objects.get(email=user.email)
+        valid_code = re.search(r'\b(\d{6})\b', mail.outbox[0].body).group(1)
+        for _ in range(5):
+            self.client.post('/login/', {
+                'auth_method': 'email_otp',
+                'email': user.email,
+                'email_otp': '000000' if valid_code != '000000' else '000001',
+            })
+
+        self.assertEqual(EmailOTP.objects.get(pk=challenge.pk).attempts, 5)
+        response = self.client.post('/login/', {
+            'auth_method': 'email_otp',
+            'email': user.email,
+            'email_otp': valid_code,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_email_delivery_failure_invalidates_the_challenge(self):
+        self.create_user()
+        with patch('portal.otp.send_mail', side_effect=smtplib.SMTPException('SMTP unavailable')):
+            response = self.request_code()
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIsNotNone(EmailOTP.objects.get().consumed_at)
+
+
 @override_settings(DEBUG=True)
 class MobileOTPTests(TestCase):
     def setUp(self):
@@ -718,5 +831,3 @@ class AIReviewAndSearchTests(TestCase):
         post_view = self.client.get(f'/feed/?post_id={post.pk}')
         self.assertContains(post_view, 'Bhopal cricket practice')
         self.assertEqual(len(post_view.context['posts']), 1)
-
-

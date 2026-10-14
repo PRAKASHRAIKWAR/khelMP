@@ -23,7 +23,7 @@ Open `http://127.0.0.1:8000/`.
 
 Create a new Blueprint in Render using this repository and its root `render.yaml`. It provisions a free Django web service and a free PostgreSQL database; the web service builds static assets and applies Django migrations during deployment. The web service may spin down while idle. Render's free PostgreSQL database expires 30 days after creation and its data is eventually deleted, so this is only for a temporary demo. Do not use it for important user data.
 
-Configure `GEMINI_API_KEY`, Twilio credentials, and SMTP settings in the Render dashboard if those features are needed. Do not copy real credentials into `.env.example` or commit them. Existing local SQLite data and uploaded media are not migrated by this setup; configure persistent object storage before relying on uploads.
+Configure `GEMINI_API_KEY`, Twilio credentials, and email settings in the Render dashboard if those features are needed. Email OTP needs `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (use a Gmail App Password, not your Google account password), and optionally `DEFAULT_FROM_EMAIL`; the default SMTP host is Gmail. Do not copy real credentials into `.env.example` or commit them. Existing local SQLite data and uploaded media are not migrated by this setup; configure persistent object storage before relying on uploads.
 
 ## Start the API and PostgreSQL
 
@@ -62,7 +62,7 @@ The current website and new API are useful working foundations, but they are not
 ## Existing Django Workflows
 
 - The homepage is the shared sign-in screen; existing accounts can sign in with username, email or player mobile number and recover passwords through expiring email links.
-- New player and selector accounts verify their phone by OTP; existing accounts can sign in with either password or phone OTP.
+- New player and selector accounts verify their phone by OTP; existing accounts can sign in with password, phone OTP or email OTP. Email OTP requires SMTP credentials to be configured in the deployment environment.
 - For local DEBUG mode without Twilio, the OTP is shown on the form for testing. Never enable this outside development. Production SMS requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` in `.env`; OTPs are hashed in the database, expire after five minutes, and allow at most five guesses.
 - Feed posts can be shared through the device's share sheet or by copying a post link.
 - The feed runs probabilistic Gemini media screening and labels uncertainty; cricket run/ball captions become unverified claims for selector review and are not written to the official result ledger until approved.

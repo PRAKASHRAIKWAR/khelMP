@@ -73,6 +73,26 @@
                         <button class="button button-warm" type="submit">Verify and sign in</button>
                     </form>
                 </details>
+                <details class="otp-alternative">
+                    <summary>Sign in with email OTP</summary>
+                    <form class="login-form otp-login-form" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="auth_method" value="email_otp">
+                        <div class="field">
+                            <label for="login-email">Email address</label>
+                            <div class="otp-entry">
+                                <input class="control" id="login-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+                                <button class="button button-secondary button-small" type="button" data-send-otp data-otp-url="{% url 'send-email-otp' %}" data-email-input="login-email" data-status-id="email-otp-status">Send OTP</button>
+                            </div>
+                        </div>
+                        <p class="otp-status" id="email-otp-status" role="status" aria-live="polite"></p>
+                        <div class="field">
+                            <label for="login-email-otp">6-digit OTP</label>
+                            <input class="control" id="login-email-otp" name="email_otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+                        </div>
+                        <button class="button button-warm" type="submit">Verify and sign in</button>
+                    </form>
+                </details>
                 <p class="account-switch"><a href="{% url 'password-reset' %}">Forgot password?</a></p>
                 <p class="account-switch">New to KhelMP? <a href="{% url 'register' %}">Create an account</a></p>
                 <a class="back-link" href="{% url 'register' %}">Create a player or selector account</a>

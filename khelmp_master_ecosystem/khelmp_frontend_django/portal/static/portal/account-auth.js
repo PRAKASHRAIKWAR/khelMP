@@ -1,17 +1,22 @@
 document.querySelectorAll('[data-send-otp]').forEach((button) => {
     button.addEventListener('click', async () => {
         const form = button.closest('form');
-        const mobile = form?.querySelector(`#${button.dataset.mobileInput}`)?.value.trim();
+        const recipientInput = button.dataset.emailInput || button.dataset.mobileInput;
+        const recipient = form?.querySelector(`#${recipientInput}`)?.value.trim();
         const csrf = form?.querySelector('[name="csrfmiddlewaretoken"]')?.value;
         const status = document.getElementById(button.dataset.statusId);
-        if (!mobile || !csrf || !status) return;
+        if (!recipient || !csrf || !status) return;
 
         button.disabled = true;
         status.textContent = 'Sending OTP…';
         try {
             const payload = new FormData();
-            payload.set('mobile_number', mobile);
-            payload.set('purpose', button.dataset.otpPurpose);
+            if (button.dataset.emailInput) {
+                payload.set('email', recipient);
+            } else {
+                payload.set('mobile_number', recipient);
+                payload.set('purpose', button.dataset.otpPurpose);
+            }
             const response = await fetch(button.dataset.otpUrl, {
                 method: 'POST',
                 body: payload,

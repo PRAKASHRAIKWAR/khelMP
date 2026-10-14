@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.login_user, name='home'),
     path('login/', views.login_user, name='login'),
     path('otp/send/', views.send_phone_otp, name='send-phone-otp'),
+    path('otp/email/send/', views.send_email_otp, name='send-email-otp'),
     path(
         'password-reset/',
         auth_views.PasswordResetView.as_view(

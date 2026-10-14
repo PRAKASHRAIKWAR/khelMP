@@ -14,10 +14,12 @@ from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
+from django.core.validators import validate_email
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q
-from django.core.paginator import Paginator
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -26,10 +28,10 @@ from django.views.static import serve
 from django.views.decorators.http import require_POST
 
 from .ai import answer_sports_question, create_scout_insight
-from .models import AccountProfile, AIPerformanceClaim, Athlete, AthletePost, AthleteResult, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
+from .models import AccountProfile, AIPerformanceClaim, Athlete, AthletePost, AthleteResult, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 from .ai import analyze_uploaded_media, extract_cricket_score_claim
  
-from .otp import OTPDeliveryError, OTPError, issue_phone_otp, local_mobile_number, normalize_mobile, verify_phone_otp
+from .otp import OTPDeliveryError, OTPError, issue_email_otp, issue_phone_otp, local_mobile_number, normalize_mobile, verify_email_otp, verify_phone_otp
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -112,6 +114,17 @@ def login_user(request):
 	if request.user.is_authenticated:
 		return redirect('feed')
 	if request.method == 'POST':
+		if request.POST.get('auth_method') == 'email_otp':
+			email = request.POST.get('email', '').strip().casefold()
+			if email and verify_email_otp(email, request.POST.get('email_otp', '')):
+				matching_users = User.objects.filter(email__iexact=email, is_active=True)
+				user = matching_users.first() if matching_users.count() == 1 else None
+				if user:
+					login(request, user)
+					account_role(user)
+					return redirect('feed')
+			messages.error(request, 'Email address or OTP is invalid, expired, or not linked to an active account.')
+			return render(request, 'login.html', {'form': AuthenticationForm()})
 		if request.POST.get('auth_method') == 'otp':
 			mobile = request.POST.get('mobile_number', '')
 			try:
@@ -191,6 +204,45 @@ def send_phone_otp(request):
 		'ok': True,
 		'message': 'OTP sent. It expires in 5 minutes.',
 		'development_code': development_code if settings.DEBUG else None,
+	})
+
+
+@require_POST
+def send_email_otp(request):
+	email = request.POST.get('email', '').strip().casefold()
+	try:
+		validate_email(email)
+	except ValidationError:
+		return JsonResponse({'ok': False, 'message': 'Enter a valid email address.'}, status=400)
+
+	remote_address = request.META.get('REMOTE_ADDR', '')
+	email_key = 'email-otp:' + hashlib.sha256(email.encode()).hexdigest()
+	address_key = 'email-otp-ip:' + hashlib.sha256(remote_address.encode()).hexdigest()
+	email_limited = not cache.add(email_key, True, timeout=60)
+	address_limited = not cache.add(address_key, True, timeout=5)
+	if email_limited or address_limited:
+		if not email_limited:
+			cache.delete(email_key)
+		if not address_limited:
+			cache.delete(address_key)
+		return JsonResponse({'ok': False, 'message': 'Please wait before requesting another OTP.'}, status=429)
+
+	matching_users = User.objects.filter(email__iexact=email, is_active=True)
+	if matching_users.count() != 1:
+		return JsonResponse({
+			'ok': True,
+			'message': 'If an active account exists for that email, a login code will be sent.',
+		})
+
+	try:
+		issue_email_otp(email)
+	except OTPDeliveryError as error:
+		cache.delete(email_key)
+		cache.delete(address_key)
+		return JsonResponse({'ok': False, 'message': str(error)}, status=503)
+	return JsonResponse({
+		'ok': True,
+		'message': 'If an active account exists for that email, a login code will be sent.',
 	})
 
 

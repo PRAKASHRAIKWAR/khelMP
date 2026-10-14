@@ -18,6 +18,10 @@ services:
           property: connectionString
       - key: DJANGO_ALLOWED_HOSTS
         value: khelmp-frontend.onrender.com
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
 
 databases:
   - name: khelmp-db

@@ -2,15 +2,17 @@ import logging
 import os
 import re
 import secrets
+import smtplib
 from datetime import timedelta
 
 import requests
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
+from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
 
-from .models import PhoneOTP
+from .models import EmailOTP, PhoneOTP
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +104,65 @@ def verify_phone_otp(mobile: str, code: str, purpose: str) -> bool:
             .filter(
                 mobile=mobile,
                 purpose=purpose,
+                consumed_at__isnull=True,
+                expires_at__gt=now,
+                attempts__lt=5,
+            )
+            .first()
+        )
+        if challenge is None:
+            return False
+        challenge.attempts += 1
+        challenge.save(update_fields=('attempts',))
+        if not check_password(code, challenge.code_hash):
+            return False
+        challenge.consumed_at = now
+        challenge.save(update_fields=('consumed_at',))
+        return True
+
+
+def issue_email_otp(email: str) -> None:
+    if not all((settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD, settings.DEFAULT_FROM_EMAIL)):
+        raise OTPDeliveryError('Email OTP is not configured. Contact the administrator.')
+
+    now = timezone.now()
+    code = f'{secrets.randbelow(1_000_000):06d}'
+    challenge = EmailOTP.objects.create(
+        email=email,
+        code_hash=make_password(code),
+        expires_at=now + timedelta(minutes=5),
+    )
+    try:
+        sent_count = send_mail(
+            'Your KhelMP login code',
+            f'Your KhelMP login code is {code}. It expires in 5 minutes.',
+            settings.DEFAULT_FROM_EMAIL,
+            [email],
+            fail_silently=False,
+        )
+        if sent_count != 1:
+            raise OTPDeliveryError('We could not send the login code. Please try again shortly.')
+    except (OSError, smtplib.SMTPException) as error:
+        logger.warning('Email OTP delivery failed for a masked destination.')
+        challenge.consumed_at = now
+        challenge.save(update_fields=('consumed_at',))
+        raise OTPDeliveryError('We could not send the login code. Please try again shortly.') from error
+    except OTPDeliveryError:
+        challenge.consumed_at = now
+        challenge.save(update_fields=('consumed_at',))
+        raise
+
+
+def verify_email_otp(email: str, code: str) -> bool:
+    if not re.fullmatch(r'\d{6}', code or ''):
+        return False
+
+    now = timezone.now()
+    with transaction.atomic():
+        challenge = (
+            EmailOTP.objects.select_for_update()
+            .filter(
+                email=email,
                 consumed_at__isnull=True,
                 expires_at__gt=now,
                 attempts__lt=5,

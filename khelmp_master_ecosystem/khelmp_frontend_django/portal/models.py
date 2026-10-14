@@ -77,6 +77,22 @@ class PhoneOTP(models.Model):
         return f'{self.mobile} · {self.purpose} · {self.created_at:%Y-%m-%d %H:%M}'
 
 
+class EmailOTP(models.Model):
+    email = models.EmailField(db_index=True)
+    code_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=('email', 'created_at'), name='otp_email_created')]
+
+    def __str__(self):
+        return f'{self.email} · {self.created_at:%Y-%m-%d %H:%M}'
+
+
 class SelectorApplication(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending review'
