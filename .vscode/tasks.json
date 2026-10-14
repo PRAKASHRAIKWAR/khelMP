@@ -1,0 +1,33 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run git remote add origin",
+			"type": "shell",
+			"command": "if (& 'C:\\Program Files\\Git\\cmd\\git.exe' remote get-url origin 2>$null) { & 'C:\\Program Files\\Git\\cmd\\git.exe' remote set-url origin 'https://github.com/PRAKASHRAIKWAR/khelMP.git' } else { & 'C:\\Program Files\\Git\\cmd\\git.exe' remote add origin 'https://github.com/PRAKASHRAIKWAR/khelMP.git' }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Rename branch to main",
+			"type": "shell",
+			"command": "& 'C:\\Program Files\\Git\\cmd\\git.exe' branch -m main",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Push main to origin",
+			"type": "shell",
+			"command": "& 'C:\\Program Files\\Git\\cmd\\git.exe' push -u origin main",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Commit and push VS Code task",
+			"type": "shell",
+			"command": "$git = 'C:\\Program Files\\Git\\cmd\\git.exe'; & $git add -- '.vscode/tasks.json'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git commit -m 'Add VS Code Git tasks' -m 'Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git push origin main; exit $LASTEXITCODE",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
