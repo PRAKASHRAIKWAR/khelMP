@@ -67,7 +67,7 @@ The current website and new API are useful working foundations, but they are not
 
 ## Existing Django Workflows
 
-- The homepage is the shared sign-in screen; existing accounts can sign in with username, email or player mobile number and recover passwords through expiring email links.
+- Anonymous visitors land on the sign-in screen; account creation and password recovery remain available from its links. Feed, profiles, player search, chat, records and Gemini questions require sign-in.
 - New player and selector accounts verify their phone by OTP; existing accounts can sign in with password, phone OTP or email OTP. Email OTP requires SMTP credentials to be configured in the deployment environment.
 - For local DEBUG mode without Twilio, the OTP is shown on the form for testing. Never enable this outside development. Production SMS requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` in the deployment environment; OTPs are hashed in the database, expire after five minutes, and allow at most five guesses.
 - Feed posts can be shared through the device's share sheet or by copying a post link.

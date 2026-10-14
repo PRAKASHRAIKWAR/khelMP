@@ -411,6 +411,26 @@ class LoginIdentifierTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Sign in')
         self.assertContains(response, 'Email / Mobile / Username')
+        self.assertContains(response, 'Create an account')
+        self.assertContains(response, 'Forgot password?')
+        self.assertNotContains(response, 'Ask Gemini')
+
+    def test_authenticated_homepage_redirects_to_member_feed(self):
+        self.client.force_login(self.user)
+        response = self.client.get('/')
+        self.assertRedirects(response, '/feed/')
+
+    def test_anonymous_visitors_are_redirected_from_member_pages(self):
+        for path in ('/feed/', '/players/', '/search/', '/chat/', '/profile/', '/records/', '/dashboard/'):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 302)
+                self.assertIn('/login/?next=', response['Location'])
+
+    def test_anonymous_gemini_use_requires_sign_in(self):
+        response = self.client.post('/ai/question/', {'question': 'How do I train safely?'})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/?next=', response['Location'])
 
     def test_email_mobile_and_username_can_sign_in(self):
         for identifier in (self.user.email, '9876543210', self.user.username):

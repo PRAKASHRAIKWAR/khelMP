@@ -992,6 +992,7 @@ def gemini_insight(request):
 	return redirect('athlete-record', athlete_id=athlete.pk)
 
 
+@login_required(login_url='login')
 def gemini_question(request):
 	if request.method != 'POST':
 		return redirect('home')

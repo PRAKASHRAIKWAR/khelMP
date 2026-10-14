@@ -1,3 +1,4 @@
+{% if request.user.is_authenticated %}
 <details class="gemini-dock">
     <summary><span class="gemini-dock-mark">AI</span><span>Ask Gemini</span></summary>
     <section class="gemini-dock-panel" aria-label="Gemini sports assistant">
@@ -12,3 +13,4 @@
         </form>
     </section>
 </details>
+{% endif %}
