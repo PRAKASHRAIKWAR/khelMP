@@ -1024,3 +1024,43 @@ class AdminUserPanelTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Create account')
         self.assertNotContains(response, 'Manage accounts')
+
+    def test_superuser_can_log_into_django_admin_with_email(self):
+        response = self.client.post('/admin/login/', {
+            'username': self.admin.email,
+            'password': 'Test-Only-Admin-Password-2026!',
+            'next': '/admin/',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], '/admin/')
+        self.assertEqual(int(self.client.session['_auth_user_id']), self.admin.pk)
+
+    def test_django_admin_login_prompts_for_username_or_admin_email(self):
+        response = self.client.get('/admin/login/')
+
+        self.assertContains(response, 'Username or administrator email:')
+
+    def test_non_staff_cannot_use_email_to_log_into_django_admin(self):
+        response = self.client.post('/admin/login/', {
+            'username': self.player.email,
+            'password': 'Test-Only-Player-Password-2026!',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_ambiguous_staff_email_cannot_log_into_django_admin(self):
+        User.objects.create_superuser(
+            username='second-site-admin',
+            email=self.admin.email.upper(),
+            password='Test-Only-Admin-Password-2026!',
+        )
+
+        response = self.client.post('/admin/login/', {
+            'username': self.admin.email,
+            'password': 'Test-Only-Admin-Password-2026!',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)

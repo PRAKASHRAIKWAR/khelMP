@@ -25,7 +25,7 @@ Create a new Blueprint in Render using this repository and its root `render.yaml
 
 Configure `GEMINI_API_KEY`, Twilio credentials, and email settings in the Render dashboard if those features are needed. Email OTP needs `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (use a Gmail App Password, not your Google account password), and optionally `DEFAULT_FROM_EMAIL`; the default SMTP host is Gmail. Do not copy real credentials into `.env.example` or commit them. Existing local SQLite data and uploaded media are not migrated by this setup; configure persistent object storage before relying on uploads.
 
-The staff-only account dashboard is available at `/admin/users/` to Django superusers. It can create player and selector accounts after verifying the supplied mobile OTP, and can activate or suspend non-staff accounts. The public Admin button leads to the Django admin sign-in; there is no public administrator signup. Create the initial administrator with `python manage.py createsuperuser` against the deployed database using a secure Django management shell.
+The staff-only account dashboard is available at `/admin/users/` to Django superusers. It can create player and selector accounts after verifying the supplied mobile OTP, and can activate or suspend non-staff accounts. The public Admin button leads to Django admin sign-in, which accepts a staff account's username or unique email address; there is no public administrator signup. Create the initial administrator with `python manage.py createsuperuser` against the deployed database using a secure Django management shell.
 
 ## Start the API and PostgreSQL
 
