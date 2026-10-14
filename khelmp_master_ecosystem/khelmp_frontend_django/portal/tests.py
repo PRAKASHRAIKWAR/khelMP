@@ -1000,3 +1000,27 @@ class AdminUserPanelTests(TestCase):
         self.assertContains(login_response, 'href="/admin/users/"')
         signup_response = self.client.get('/register/')
         self.assertContains(signup_response, 'href="/admin/users/"')
+
+    def test_django_admin_home_shows_account_actions_to_superusers(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get('/admin/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Create account')
+        self.assertContains(response, 'href="/admin/users/create/"')
+        self.assertContains(response, 'Manage accounts')
+
+    def test_django_admin_home_hides_account_actions_from_non_superuser_staff(self):
+        staff = User.objects.create_user(
+            username='limited-admin-staff',
+            password='Limited-Staff-Password-2026!',
+            is_staff=True,
+        )
+        self.client.force_login(staff)
+
+        response = self.client.get('/admin/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Create account')
+        self.assertNotContains(response, 'Manage accounts')
