@@ -9,6 +9,7 @@ load_dotenv(BASE_DIR.parent / '.env')
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '').strip()
 ADMIN_BOOTSTRAP_TOKEN = os.getenv('ADMIN_BOOTSTRAP_TOKEN', '').strip()
+GOOGLE_SITE_VERIFICATION = os.getenv('GOOGLE_SITE_VERIFICATION', '').strip()
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').strip().lower() in {'1', 'true', 'yes'}
 default_hosts = '127.0.0.1,localhost' if DEBUG else ''
 allowed_hosts = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', default_hosts).split(',') if host.strip()]
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sitemaps',
     'portal',
 ]
 

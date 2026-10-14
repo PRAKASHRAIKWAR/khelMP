@@ -5,7 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#17483c">
-    <title>KhelMP | Account sign in</title>
+    <meta name="description" content="KhelMP connects athletes and selectors across Madhya Pradesh. Create a player profile, share sports progress and discover athlete results.">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'home' %}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="KhelMP">
+    <meta property="og:title" content="KhelMP | Madhya Pradesh Athlete Community">
+    <meta property="og:description" content="Create a player profile, share sports progress and connect athletes with selectors across Madhya Pradesh.">
+    <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{% url 'home' %}">
+    {% if google_site_verification %}<meta name="google-site-verification" content="{{ google_site_verification }}">{% endif %}
+    <title>KhelMP | Madhya Pradesh Athlete Community</title>
     <link rel="stylesheet" href="{% static 'portal/site.css' %}">
 </head>
 <body>
@@ -26,8 +35,9 @@
         <section class="login-aside">
             <div>
                 <p class="eyebrow">Discover. Develop. Select. Succeed.</p>
-                <h1>My KhelMP community</h1>
-                <p>Sign in to share your progress or follow athletes across Madhya Pradesh.</p>
+                <h1>KhelMP: Madhya Pradesh Athlete Community</h1>
+                <p>A sports community where players can build profiles and share progress, and selectors can discover athletes and follow their results.</p>
+                <p>Join athletes and selectors from across Madhya Pradesh to share training milestones, connect with teammates and support local sporting talent.</p>
             </div>
             <span class="aside-note">KhelMP · Athlete community</span>
         </section>

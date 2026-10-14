@@ -1,9 +1,15 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
+from django.contrib.sitemaps.views import sitemap
 from django.urls import path, reverse_lazy
 from portal import views
+from portal.sitemaps import PublicPagesSitemap
+
+sitemaps = {'public': PublicPagesSitemap()}
 
 urlpatterns = [
+    path('robots.txt', views.robots_txt, name='robots-txt'),
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='sitemap'),
     path('admin/initial-setup/', views.admin_initial_setup, name='admin-initial-setup'),
     path('admin/users/', views.admin_users, name='admin-users'),
     path('admin/users/create/', views.admin_create_account, name='admin-create-account'),

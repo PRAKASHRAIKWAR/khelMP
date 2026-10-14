@@ -452,6 +452,41 @@ class LoginIdentifierTests(TestCase):
         self.assertTrue(self.user.check_password('NewSecurePassword2026!'))
 
 
+class GoogleSearchVisibilityTests(TestCase):
+    def test_public_homepage_has_search_metadata_and_verification_tag(self):
+        with override_settings(GOOGLE_SITE_VERIFICATION='example-verification-token'):
+            response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="robots" content="index,follow"')
+        self.assertContains(response, 'rel="canonical" href="http://testserver/"')
+        self.assertContains(response, 'name="google-site-verification" content="example-verification-token"')
+        self.assertContains(response, 'Madhya Pradesh Athlete Community')
+        self.assertContains(response, 'selectors can discover athletes')
+
+    def test_signup_page_is_not_listed_in_search_results(self):
+        response = self.client.get('/register/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="robots" content="noindex,follow"')
+
+    def test_sitemap_lists_only_the_public_homepage(self):
+        response = self.client.get('/sitemap.xml')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<loc>https://testserver/</loc>')
+        self.assertNotContains(response, '/register/')
+        self.assertNotContains(response, '/feed/')
+
+    def test_robots_txt_points_crawlers_to_sitemap_and_away_from_private_pages(self):
+        response = self.client.get('/robots.txt')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/plain; charset=utf-8')
+        self.assertContains(response, 'Sitemap: http://testserver/sitemap.xml')
+        self.assertContains(response, 'Disallow: /admin/')
+        self.assertContains(response, 'Disallow: /secure-media/')
+
+
 @override_settings(
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     EMAIL_HOST_USER='sender@gmail.com',

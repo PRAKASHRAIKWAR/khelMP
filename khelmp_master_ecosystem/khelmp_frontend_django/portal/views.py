@@ -20,7 +20,7 @@ from django.core.validators import validate_email
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -43,6 +43,29 @@ logger = logging.getLogger(__name__)
 MAX_POST_SIZE = 100 * 1024 * 1024
 MAX_IMAGE_SIZE = 12 * 1024 * 1024
 ALLOWED_POST_IMAGE_EXT = {'.jpg', '.jpeg', '.png', '.webp'}
+
+
+def robots_txt(request):
+	sitemap_url = request.build_absolute_uri(reverse('sitemap'))
+	content = '\n'.join((
+		'User-agent: *',
+		'Allow: /',
+		'Disallow: /admin/',
+		'Disallow: /otp/',
+		'Disallow: /password-reset/',
+		'Disallow: /chat/',
+		'Disallow: /profile/',
+		'Disallow: /records/',
+		'Disallow: /dashboard/',
+		'Disallow: /feed/',
+		'Disallow: /players/',
+		'Disallow: /search/',
+		'Disallow: /ai/',
+		'Disallow: /secure-media/',
+		f'Sitemap: {sitemap_url}',
+		'',
+	))
+	return HttpResponse(content, content_type='text/plain; charset=utf-8')
 ALLOWED_POST_VIDEO_EXT = {'.mp4', '.mov', '.webm', '.avi', '.mkv'}
 
 
@@ -128,7 +151,10 @@ def login_user(request):
 					account_role(user)
 					return redirect('feed')
 			messages.error(request, 'Email address or OTP is invalid, expired, or not linked to an active account.')
-			return render(request, 'login.html', {'form': AuthenticationForm()})
+			return render(request, 'login.html', {
+				'form': AuthenticationForm(),
+				'google_site_verification': settings.GOOGLE_SITE_VERIFICATION,
+			})
 		if request.POST.get('auth_method') == 'otp':
 			mobile = request.POST.get('mobile_number', '')
 			try:
@@ -148,7 +174,10 @@ def login_user(request):
 					account_role(user)
 					return redirect('feed')
 			messages.error(request, 'Mobile number or OTP is invalid, expired, or not linked to an active account.')
-			return render(request, 'login.html', {'form': AuthenticationForm()})
+			return render(request, 'login.html', {
+				'form': AuthenticationForm(),
+				'google_site_verification': settings.GOOGLE_SITE_VERIFICATION,
+			})
 		form_data = request.POST.copy()
 		identifier = form_data.get('username', '').strip()
 		matched_user = None
@@ -167,7 +196,10 @@ def login_user(request):
 				return redirect('feed')
 	else:
 		form = AuthenticationForm()
-	return render(request, 'login.html', {'form': form})
+	return render(request, 'login.html', {
+		'form': form,
+		'google_site_verification': settings.GOOGLE_SITE_VERIFICATION,
+	})
 
 
 @require_POST
