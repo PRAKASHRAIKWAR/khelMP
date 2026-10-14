@@ -19,6 +19,12 @@ python manage.py runserver 127.0.0.1:8000
 
 Open `http://127.0.0.1:8000/`.
 
+## Deploy the Django Frontend to Render
+
+Create a new Blueprint in Render using this repository and its root `render.yaml`. It provisions the Django web service and a persistent PostgreSQL database; the web service builds static assets and applies Django migrations during deployment. The web service uses Render's free plan, which may spin down while idle. The PostgreSQL database uses Render's lowest paid plan, so review its current price in Render before deploying.
+
+After the first deploy, create a Django administrator from the web service's Shell using `python manage.py createsuperuser`. Configure `GEMINI_API_KEY`, Twilio credentials, and SMTP settings in the Render dashboard if those features are needed. Do not copy real credentials into `.env.example` or commit them. Existing local SQLite data and uploaded media are not migrated by this setup; configure persistent object storage before relying on production uploads.
+
 ## Start the API and PostgreSQL
 
 Docker Compose runs PostgreSQL and the FastAPI service. Set `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, and `DJANGO_SECRET_KEY` in `.env` before starting:

@@ -1,6 +1,9 @@
 Django>=5.2,<7.0
+dj-database-url>=2.3,<4.0
 google-genai>=2.23.0,<3.0
+gunicorn>=23.0,<24.0
 Pillow>=10.0
+psycopg[binary]>=3.2,<4.0
 python-dotenv>=1.0
 requests>=2.31
 whitenoise>=6.0
