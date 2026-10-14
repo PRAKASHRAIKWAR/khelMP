@@ -10,6 +10,30 @@ from .otp import OTPError, local_mobile_number, normalize_mobile
 User = get_user_model()
 
 
+class AdminBootstrapForm(UserCreationForm):
+    email = forms.EmailField(max_length=254)
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ('username', 'email')
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().casefold()
+        if User.objects.filter(email__iexact=email, is_staff=True).exists():
+            raise forms.ValidationError('A staff account already uses this email address.')
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        user.is_staff = True
+        user.is_superuser = True
+        user.is_active = True
+        if commit:
+            user.save()
+        return user
+
+
 class AdminAccountCreationForm(UserCreationForm):
     account_role = forms.ChoiceField(
         choices=AccountProfile.Role.choices,

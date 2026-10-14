@@ -93,6 +93,11 @@ class EmailOTP(models.Model):
         return f'{self.email} · {self.created_at:%Y-%m-%d %H:%M}'
 
 
+class AdminBootstrapState(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+
 class SelectorApplication(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending review'

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Initial administrator setup · KhelMP</title>
+  <style>
+    body { background: #f3f6fa; color: #172033; font: 16px system-ui, sans-serif; margin: 0; padding: 24px; }
+    main { background: #fff; border-radius: 14px; box-shadow: 0 8px 30px #17203318; margin: 8vh auto; max-width: 480px; padding: 28px; }
+    h1 { font-size: 1.5rem; margin-top: 0; }
+    p { line-height: 1.5; }
+    label { display: block; font-weight: 600; margin: 16px 0 6px; }
+    input { box-sizing: border-box; border: 1px solid #b8c2d1; border-radius: 7px; font: inherit; padding: 10px; width: 100%; }
+    button { background: #174ea6; border: 0; border-radius: 7px; color: white; cursor: pointer; font: inherit; font-weight: 600; margin-top: 20px; padding: 12px; width: 100%; }
+    .errorlist, .messages { color: #a61b1b; }
+    .helptext { color: #596579; display: block; font-size: .9rem; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Create the first administrator</h1>
+    <p>This one-time setup is available only while its Render secret is configured and no administrator exists. Choose a new password; do not reuse a password shared in chat.</p>
+    {% if messages %}<ul class="messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+      {% for field in form %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<small class="helptext">{{ field.help_text|safe }}</small>{% endif %}
+        {{ field.errors }}
+      {% endfor %}
+      <label for="setup_token">One-time setup token</label>
+      <input id="setup_token" name="setup_token" type="password" autocomplete="off" required>
+      <button type="submit">Create administrator</button>
+    </form>
+  </main>
+</body>
+</html>

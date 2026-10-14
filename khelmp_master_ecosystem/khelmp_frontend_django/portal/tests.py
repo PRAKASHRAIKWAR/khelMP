@@ -20,7 +20,7 @@ from PIL import Image
 from unittest.mock import patch
 
 from .admin import SelectorApplicationAdmin
-from .models import AccountProfile, Athlete, AthletePost, AthleteResult, AIPerformanceClaim, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
+from .models import AccountProfile, AdminBootstrapState, Athlete, AthletePost, AthleteResult, AIPerformanceClaim, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 
 
 User = get_user_model()
@@ -832,6 +832,72 @@ class AIReviewAndSearchTests(TestCase):
         post_view = self.client.get(f'/feed/?post_id={post.pk}')
         self.assertContains(post_view, 'Bhopal cricket practice')
         self.assertEqual(len(post_view.context['posts']), 1)
+
+
+@override_settings(ADMIN_BOOTSTRAP_TOKEN='test-bootstrap-token-at-least-thirty-two-characters')
+class AdminBootstrapTests(TestCase):
+    def test_setup_page_requires_configured_token(self):
+        with override_settings(ADMIN_BOOTSTRAP_TOKEN=''):
+            response = self.client.get('/admin/initial-setup/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_setup_page_rejects_short_token_configuration(self):
+        with override_settings(ADMIN_BOOTSTRAP_TOKEN='too-short'):
+            response = self.client.get('/admin/initial-setup/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_invalid_token_does_not_create_administrator(self):
+        response = self.client.post('/admin/initial-setup/', {
+            'username': 'bootstrap-admin',
+            'email': 'bootstrap@example.com',
+            'password1': 'New-Unique-Admin-Password-2026!x',
+            'password2': 'New-Unique-Admin-Password-2026!x',
+            'setup_token': 'incorrect-token',
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(User.objects.filter(username='bootstrap-admin').exists())
+        self.assertIsNone(AdminBootstrapState.objects.get(pk=1).completed_at)
+
+    def test_weak_password_is_rejected(self):
+        response = self.client.post('/admin/initial-setup/', {
+            'username': 'bootstrap-admin',
+            'email': 'bootstrap@example.com',
+            'password1': 'password',
+            'password2': 'password',
+            'setup_token': 'test-bootstrap-token-at-least-thirty-two-characters',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username='bootstrap-admin').exists())
+        self.assertIsNone(AdminBootstrapState.objects.get(pk=1).completed_at)
+
+    def test_valid_token_creates_first_superuser_and_consumes_setup(self):
+        User.objects.create_user(
+            username='existing-player',
+            email='admin@example.com',
+            password='Existing-Player-Password-2026!',
+        )
+        response = self.client.post('/admin/initial-setup/', {
+            'username': 'bootstrap-admin',
+            'email': 'admin@example.com',
+            'password1': 'New-Unique-Admin-Password-2026!x',
+            'password2': 'New-Unique-Admin-Password-2026!x',
+            'setup_token': 'test-bootstrap-token-at-least-thirty-two-characters',
+        })
+        self.assertRedirects(response, '/admin/login/')
+        admin_user = User.objects.get(username='bootstrap-admin')
+        self.assertTrue(admin_user.is_staff)
+        self.assertTrue(admin_user.is_superuser)
+        self.assertTrue(admin_user.check_password('New-Unique-Admin-Password-2026!x'))
+        self.assertIsNotNone(AdminBootstrapState.objects.get(pk=1).completed_at)
+        self.assertEqual(self.client.get('/admin/initial-setup/').status_code, 404)
+
+    def test_existing_superuser_disables_setup(self):
+        User.objects.create_superuser(
+            username='already-admin',
+            email='already-admin@example.com',
+            password='Existing-Admin-Password-2026!',
+        )
+        self.assertEqual(self.client.get('/admin/initial-setup/').status_code, 404)
 
 
 class AdminUserPanelTests(TestCase):

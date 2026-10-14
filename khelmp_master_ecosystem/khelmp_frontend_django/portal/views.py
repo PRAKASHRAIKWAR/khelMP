@@ -28,10 +28,11 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.static import serve
 from django.views.decorators.http import require_POST
 from urllib.parse import urlencode
+import secrets
 
 from .ai import answer_sports_question, create_scout_insight
-from .forms import AdminAccountCreationForm
-from .models import AccountProfile, AIPerformanceClaim, Athlete, AthletePost, AthleteResult, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
+from .forms import AdminAccountCreationForm, AdminBootstrapForm
+from .models import AccountProfile, AdminBootstrapState, AIPerformanceClaim, Athlete, AthletePost, AthleteResult, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 from .ai import analyze_uploaded_media, extract_cricket_score_claim
  
 from .otp import OTPDeliveryError, OTPError, issue_email_otp, issue_phone_otp, local_mobile_number, normalize_mobile, verify_email_otp, verify_phone_otp
@@ -1052,6 +1053,41 @@ def admin_users(request):
 		'search': search,
 		'result_count': page_obj.paginator.count,
 	})
+
+
+def admin_initial_setup(request):
+	if len(settings.ADMIN_BOOTSTRAP_TOKEN) < 32:
+		raise Http404
+	state = get_object_or_404(AdminBootstrapState, pk=1)
+	if state.completed_at is not None or User.objects.filter(is_superuser=True).exists():
+		raise Http404
+
+	if request.method == 'POST':
+		provided_token = request.POST.get('setup_token', '')
+		expected_token = settings.ADMIN_BOOTSTRAP_TOKEN
+		if not secrets.compare_digest(provided_token.encode('utf-8'), expected_token.encode('utf-8')):
+			messages.error(request, 'Setup token is incorrect.')
+			return render(request, 'admin_initial_setup.html', {'form': AdminBootstrapForm()}, status=403)
+
+		form = AdminBootstrapForm(request.POST)
+		if form.is_valid():
+			with transaction.atomic():
+				state = AdminBootstrapState.objects.select_for_update().get(pk=1)
+				if state.completed_at is not None or User.objects.filter(is_superuser=True).exists():
+					raise Http404
+				try:
+					with transaction.atomic():
+						form.save()
+				except IntegrityError:
+					form.add_error(None, 'That username or email is already in use.')
+				else:
+					state.completed_at = timezone.now()
+					state.save(update_fields=('completed_at',))
+					messages.success(request, 'Administrator account created. Sign in with your email and new password.')
+					return redirect('admin:login')
+	else:
+		form = AdminBootstrapForm()
+	return render(request, 'admin_initial_setup.html', {'form': form})
 
 
 @login_required(login_url='admin:login')

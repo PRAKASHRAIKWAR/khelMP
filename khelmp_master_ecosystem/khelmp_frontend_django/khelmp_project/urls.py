@@ -4,6 +4,7 @@ from django.urls import path, reverse_lazy
 from portal import views
 
 urlpatterns = [
+    path('admin/initial-setup/', views.admin_initial_setup, name='admin-initial-setup'),
     path('admin/users/', views.admin_users, name='admin-users'),
     path('admin/users/create/', views.admin_create_account, name='admin-create-account'),
     path('admin/users/<int:user_id>/toggle-active/', views.admin_toggle_user_active, name='admin-toggle-user-active'),
