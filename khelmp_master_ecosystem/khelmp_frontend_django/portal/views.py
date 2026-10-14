@@ -30,6 +30,7 @@ from django.views.decorators.http import require_POST
 from urllib.parse import urlencode
 
 from .ai import answer_sports_question, create_scout_insight
+from .forms import AdminAccountCreationForm
 from .models import AccountProfile, AIPerformanceClaim, Athlete, AthletePost, AthleteResult, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 from .ai import analyze_uploaded_media, extract_cricket_score_claim
  
@@ -1051,6 +1052,52 @@ def admin_users(request):
 		'search': search,
 		'result_count': page_obj.paginator.count,
 	})
+
+
+@login_required(login_url='admin:login')
+def admin_create_account(request):
+	if not request.user.is_superuser:
+		raise PermissionDenied
+	if request.method == 'POST':
+		form = AdminAccountCreationForm(request.POST)
+		if form.is_valid():
+			mobile = form.cleaned_data['mobile_number']
+			role = form.cleaned_data['account_role']
+			try:
+				with transaction.atomic():
+					if not verify_phone_otp(
+						mobile,
+						form.cleaned_data['mobile_otp'],
+						PhoneOTP.Purpose.SIGNUP,
+					):
+						form.add_error('mobile_otp', 'This OTP is invalid, expired, or has already been used.')
+					else:
+						user = form.save(commit=False)
+						user.email = form.cleaned_data['email']
+						user.first_name = form.cleaned_data['full_name']
+						user.save()
+						AccountProfile.objects.create(
+							user=user,
+							role=role,
+							mobile=mobile,
+							mobile_verified=True,
+						)
+						if role == AccountProfile.Role.PLAYER:
+							Athlete.objects.create(
+								user=user,
+								full_name=form.cleaned_data['full_name'],
+								mobile_number=local_mobile_number(mobile),
+								email=form.cleaned_data['email'],
+								district=form.cleaned_data['district'],
+								sport_category=form.cleaned_data['sport_category'],
+							)
+						messages.success(request, f'{user.get_username()} account created successfully.')
+						return redirect('admin-users')
+			except IntegrityError:
+				form.add_error(None, 'An account already uses this username, email, or mobile number.')
+	else:
+		form = AdminAccountCreationForm(initial={'account_role': AccountProfile.Role.PLAYER})
+	return render(request, 'admin_create_account.html', {'form': form})
 
 
 @login_required(login_url='admin:login')

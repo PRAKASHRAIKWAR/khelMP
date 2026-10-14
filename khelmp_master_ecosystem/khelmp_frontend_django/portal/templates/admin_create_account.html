@@ -1,0 +1,98 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | Create account</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'admin-users' %}">
+                <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
+                <span class="brand-copy">KhelMP<small>Administrator workspace</small></span>
+            </a>
+            <div class="header-actions">
+                <a class="button button-secondary button-small" href="{% url 'admin-users' %}">Accounts</a>
+                <a class="button button-small" href="{% url 'logout' %}">Sign out</a>
+            </div>
+        </div>
+    </header>
+    <main class="admin-create-layout">
+        <section class="admin-create-heading">
+            <p class="eyebrow eyebrow-dark">Administrator workspace</p>
+            <h1>Create an account</h1>
+            <p>Create a player or selector account. The mobile number must be verified with OTP.</p>
+        </section>
+        <section class="panel admin-create-panel">
+            {% if form.non_field_errors %}
+                <div class="notice notice-error" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <form class="admin-create-form" method="post">
+                {% csrf_token %}
+                <div class="field">
+                    <label for="{{ form.account_role.id_for_label }}">{{ form.account_role.label }}</label>
+                    {{ form.account_role }}
+                    {% if form.account_role.errors %}<span class="field-error">{{ form.account_role.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="{{ form.full_name.id_for_label }}">{{ form.full_name.label }}</label>
+                    <input class="control" id="{{ form.full_name.id_for_label }}" name="{{ form.full_name.html_name }}" type="text" maxlength="150" value="{{ form.full_name.value|default:'' }}" autocomplete="name" required>
+                    {% if form.full_name.errors %}<span class="field-error">{{ form.full_name.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="{{ form.username.id_for_label }}">Username</label>
+                    <input class="control" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" type="text" maxlength="150" value="{{ form.username.value|default:'' }}" autocomplete="username" required>
+                    {% if form.username.errors %}<span class="field-error">{{ form.username.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="{{ form.email.id_for_label }}">Email address</label>
+                    <input class="control" id="{{ form.email.id_for_label }}" name="{{ form.email.html_name }}" type="email" maxlength="254" value="{{ form.email.value|default:'' }}" autocomplete="email" required>
+                    {% if form.email.errors %}<span class="field-error">{{ form.email.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="admin-account-mobile">Mobile number</label>
+                    <div class="otp-entry">
+                        <input class="control" id="admin-account-mobile" name="mobile_number" type="tel" inputmode="tel" autocomplete="tel" value="{{ form.mobile_number.value|default:'' }}" placeholder="10-digit Indian mobile" required>
+                        <button class="button button-secondary button-small" type="button" data-send-otp data-otp-url="{% url 'send-phone-otp' %}" data-otp-purpose="signup" data-mobile-input="admin-account-mobile" data-status-id="admin-account-otp-status">Send OTP</button>
+                    </div>
+                    <p class="otp-status" id="admin-account-otp-status" role="status" aria-live="polite"></p>
+                    {% if form.mobile_number.errors %}<span class="field-error">{{ form.mobile_number.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="{{ form.mobile_otp.id_for_label }}">6-digit mobile OTP</label>
+                    <input class="control" id="{{ form.mobile_otp.id_for_label }}" name="{{ form.mobile_otp.html_name }}" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+                    {% if form.mobile_otp.errors %}<span class="field-error">{{ form.mobile_otp.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field admin-player-fields">
+                    <label for="{{ form.district.id_for_label }}">District</label>
+                    <input class="control" id="{{ form.district.id_for_label }}" name="{{ form.district.html_name }}" type="text" maxlength="100" value="{{ form.district.value|default:'' }}">
+                    {% if form.district.errors %}<span class="field-error">{{ form.district.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field admin-player-fields">
+                    <label for="{{ form.sport_category.id_for_label }}">Primary sport</label>
+                    <input class="control" id="{{ form.sport_category.id_for_label }}" name="{{ form.sport_category.html_name }}" type="text" maxlength="80" value="{{ form.sport_category.value|default:'' }}">
+                    {% if form.sport_category.errors %}<span class="field-error">{{ form.sport_category.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="{{ form.password1.id_for_label }}">Password</label>
+                    <input class="control" id="{{ form.password1.id_for_label }}" name="{{ form.password1.html_name }}" type="password" autocomplete="new-password" required>
+                    <span class="field-hint">Use at least 12 characters. Avoid common passwords and personal details.</span>
+                    {% if form.password1.errors %}<span class="field-error">{{ form.password1.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="{{ form.password2.id_for_label }}">Confirm password</label>
+                    <input class="control" id="{{ form.password2.id_for_label }}" name="{{ form.password2.html_name }}" type="password" autocomplete="new-password" required>
+                    {% if form.password2.errors %}<span class="field-error">{{ form.password2.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <button class="button button-warm" type="submit">Create account</button>
+            </form>
+        </section>
+    </main>
+    <script src="{% static 'portal/account-auth.js' %}" defer></script>
+    <script src="{% static 'portal/admin-account-form.js' %}" defer></script>
+</body>
+</html>

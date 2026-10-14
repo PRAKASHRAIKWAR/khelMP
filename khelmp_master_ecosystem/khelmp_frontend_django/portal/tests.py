@@ -6,6 +6,7 @@ from datetime import timedelta
 from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 from django.contrib import admin, messages
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -908,3 +909,94 @@ class AdminUserPanelTests(TestCase):
         self.client.force_login(self.admin)
         response = self.client.get(f'/admin/users/{self.player.pk}/toggle-active/')
         self.assertEqual(response.status_code, 405)
+
+    def test_superuser_can_create_otp_verified_player_account(self):
+        mobile = '+919123456789'
+        PhoneOTP.objects.create(
+            mobile=mobile,
+            purpose=PhoneOTP.Purpose.SIGNUP,
+            code_hash=make_password('123456'),
+            expires_at=timezone.now() + timedelta(minutes=5),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post('/admin/users/create/', {
+            'account_role': AccountProfile.Role.PLAYER,
+            'full_name': 'New Admin Player',
+            'username': 'new-admin-player',
+            'email': 'new-admin-player@example.com',
+            'mobile_number': mobile,
+            'mobile_otp': '123456',
+            'district': 'Bhopal',
+            'sport_category': 'Athletics',
+            'password1': 'Safe-Admin-Created-Password-2026!',
+            'password2': 'Safe-Admin-Created-Password-2026!',
+        })
+
+        self.assertRedirects(response, '/admin/users/')
+        user = User.objects.get(username='new-admin-player')
+        self.assertTrue(user.check_password('Safe-Admin-Created-Password-2026!'))
+        profile = AccountProfile.objects.get(user=user)
+        self.assertEqual(profile.role, AccountProfile.Role.PLAYER)
+        self.assertTrue(profile.mobile_verified)
+        self.assertEqual(user.athlete_profile.full_name, 'New Admin Player')
+        self.assertEqual(user.athlete_profile.mobile_number, '9123456789')
+        self.assertIsNotNone(PhoneOTP.objects.get(mobile=mobile).consumed_at)
+
+    def test_superuser_can_create_otp_verified_selector_account(self):
+        mobile = '+919123456789'
+        PhoneOTP.objects.create(
+            mobile=mobile,
+            purpose=PhoneOTP.Purpose.SIGNUP,
+            code_hash=make_password('654321'),
+            expires_at=timezone.now() + timedelta(minutes=5),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post('/admin/users/create/', {
+            'account_role': AccountProfile.Role.SELECTOR,
+            'full_name': 'New Selector',
+            'username': 'new-selector',
+            'email': 'new-selector@example.com',
+            'mobile_number': mobile,
+            'mobile_otp': '654321',
+            'district': '',
+            'sport_category': '',
+            'password1': 'Safe-Selector-Password-2026!',
+            'password2': 'Safe-Selector-Password-2026!',
+        })
+
+        self.assertRedirects(response, '/admin/users/')
+        user = User.objects.get(username='new-selector')
+        self.assertEqual(user.account_profile.role, AccountProfile.Role.SELECTOR)
+        self.assertTrue(user.account_profile.mobile_verified)
+        self.assertFalse(Athlete.objects.filter(user=user).exists())
+
+    def test_account_creation_requires_superuser_and_verified_mobile_otp(self):
+        data = {
+            'account_role': AccountProfile.Role.PLAYER,
+            'full_name': 'Unauthorized Player',
+            'username': 'unauthorized-player',
+            'email': 'unauthorized@example.com',
+            'mobile_number': '+919123456789',
+            'mobile_otp': '123456',
+            'district': 'Bhopal',
+            'sport_category': 'Athletics',
+            'password1': 'Safe-Admin-Created-Password-2026!',
+            'password2': 'Safe-Admin-Created-Password-2026!',
+        }
+        response = self.client.post('/admin/users/create/', data)
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(User.objects.filter(username='unauthorized-player').exists())
+
+        self.client.force_login(self.admin)
+        response = self.client.post('/admin/users/create/', data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'invalid, expired, or has already been used')
+        self.assertFalse(User.objects.filter(username='unauthorized-player').exists())
+
+    def test_public_login_and_signup_show_admin_access_button(self):
+        login_response = self.client.get('/login/')
+        self.assertContains(login_response, 'href="/admin/users/"')
+        signup_response = self.client.get('/register/')
+        self.assertContains(signup_response, 'href="/admin/users/"')

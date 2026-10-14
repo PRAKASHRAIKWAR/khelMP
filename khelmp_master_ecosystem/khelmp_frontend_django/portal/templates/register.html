@@ -15,7 +15,10 @@
                 <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
                 <span class="brand-copy">KhelMP<small>Join the community</small></span>
             </a>
-            <a class="button button-secondary button-small" href="{% url 'login' %}">Sign in</a>
+            <div class="header-actions">
+                <a class="button button-secondary button-small" href="{% url 'login' %}">Sign in</a>
+                <a class="button button-small" href="{% url 'admin-users' %}">Admin</a>
+            </div>
         </div>
     </header>
     <main class="account-layout">
