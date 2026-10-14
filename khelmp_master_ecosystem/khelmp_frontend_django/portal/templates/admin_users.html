@@ -1,0 +1,106 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | User administration</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'home' %}">
+                <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
+                <span class="brand-copy">KhelMP<small>User administration</small></span>
+            </a>
+            <div class="header-actions">
+                <a class="button button-secondary button-small" href="{% url 'admin:index' %}">Django admin</a>
+                <a class="button button-small" href="{% url 'logout' %}">Sign out</a>
+            </div>
+        </div>
+    </header>
+    <main class="admin-users-layout">
+        <section class="dashboard-top">
+            <div>
+                <p class="eyebrow eyebrow-dark">Administrator workspace</p>
+                <h1>Registered accounts</h1>
+                <p>Search accounts and enable or suspend player and selector access.</p>
+            </div>
+            <div class="admin-users-count"><strong>{{ result_count }}</strong><span>matching accounts</span></div>
+        </section>
+
+        {% if messages %}
+            <div class="notice-list" role="status">
+                {% for message in messages %}
+                    <div class="notice{% if message.tags == 'error' %} notice-error{% endif %}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <section class="panel filter-panel">
+            <form class="admin-users-search" method="get">
+                <div class="field">
+                    <label for="account-search">Find an account</label>
+                    <input class="control" id="account-search" type="search" name="q" value="{{ search }}" placeholder="Name, username, email or mobile">
+                </div>
+                <button class="button" type="submit">Search</button>
+                {% if search %}<a class="button button-secondary" href="{% url 'admin-users' %}">Clear</a>{% endif %}
+            </form>
+        </section>
+
+        <section class="admin-user-list" aria-label="Accounts">
+            {% for account in page_obj %}
+                <article class="panel admin-user-card">
+                    <div class="admin-user-details">
+                        <div class="admin-user-heading">
+                            <h2>{% if account.athlete_profile %}{{ account.athlete_profile.full_name }}{% else %}{{ account.get_full_name|default:account.username }}{% endif %}</h2>
+                            <span class="sport-tag">{% if account.is_superuser %}Administrator{% elif account.account_profile %}{{ account.account_profile.get_role_display }}{% elif account.is_staff %}Staff{% else %}Player{% endif %}</span>
+                        </div>
+                        <p class="admin-user-contact">{{ account.username }}{% if account.email %}<span>{{ account.email }}</span>{% endif %}</p>
+                        <p class="admin-user-meta">
+                            {% if account.account_profile.mobile %}{{ account.account_profile.mobile }}{% elif account.athlete_profile.mobile_number %}{{ account.athlete_profile.mobile_number }}{% else %}No mobile number{% endif %}
+                            <span>Joined {{ account.date_joined|date:"M j, Y" }}</span>
+                        </p>
+                    </div>
+                    <div class="admin-user-actions">
+                        {% if account.is_active %}<span class="admin-account-status is-active">Active</span>{% else %}<span class="admin-account-status is-inactive">Suspended</span>{% endif %}
+                        {% if account.is_staff or account.is_superuser %}
+                            <span class="admin-account-note">Manage staff in Django admin</span>
+                        {% else %}
+                            <form method="post" action="{% url 'admin-toggle-user-active' account.pk %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="q" value="{{ search }}">
+                                {% if account.is_active %}
+                                    <button class="button button-danger" type="submit">Suspend account</button>
+                                {% else %}
+                                    <button class="button button-secondary" type="submit">Activate account</button>
+                                {% endif %}
+                            </form>
+                        {% endif %}
+                    </div>
+                </article>
+            {% empty %}
+                <div class="panel empty-state">No accounts match this search.</div>
+            {% endfor %}
+        </section>
+
+        {% if page_obj.has_other_pages %}
+            <nav class="admin-users-pagination" aria-label="Account pages">
+                {% if page_obj.has_previous %}
+                    <a class="button button-secondary" href="?q={{ search|urlencode }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+                <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a class="button button-secondary" href="?q={{ search|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next</a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+            </nav>
+        {% endif %}
+    </main>
+</body>
+</html>

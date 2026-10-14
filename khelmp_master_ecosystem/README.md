@@ -25,6 +25,8 @@ Create a new Blueprint in Render using this repository and its root `render.yaml
 
 Configure `GEMINI_API_KEY`, Twilio credentials, and email settings in the Render dashboard if those features are needed. Email OTP needs `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (use a Gmail App Password, not your Google account password), and optionally `DEFAULT_FROM_EMAIL`; the default SMTP host is Gmail. Do not copy real credentials into `.env.example` or commit them. Existing local SQLite data and uploaded media are not migrated by this setup; configure persistent object storage before relying on uploads.
 
+The staff-only account dashboard is available at `/admin/users/` to Django superusers. There is no public administrator signup. Create the initial administrator with `python manage.py createsuperuser` against the deployed database using a secure Django management shell.
+
 ## Start the API and PostgreSQL
 
 Docker Compose runs PostgreSQL and the FastAPI service. Set `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, and `DJANGO_SECRET_KEY` in `.env` before starting:
@@ -63,7 +65,7 @@ The current website and new API are useful working foundations, but they are not
 
 - The homepage is the shared sign-in screen; existing accounts can sign in with username, email or player mobile number and recover passwords through expiring email links.
 - New player and selector accounts verify their phone by OTP; existing accounts can sign in with password, phone OTP or email OTP. Email OTP requires SMTP credentials to be configured in the deployment environment.
-- For local DEBUG mode without Twilio, the OTP is shown on the form for testing. Never enable this outside development. Production SMS requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` in `.env`; OTPs are hashed in the database, expire after five minutes, and allow at most five guesses.
+- For local DEBUG mode without Twilio, the OTP is shown on the form for testing. Never enable this outside development. Production SMS requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` in the deployment environment; OTPs are hashed in the database, expire after five minutes, and allow at most five guesses.
 - Feed posts can be shared through the device's share sheet or by copying a post link.
 - The feed runs probabilistic Gemini media screening and labels uncertainty; cricket run/ball captions become unverified claims for selector review and are not written to the official result ledger until approved.
 - Players can edit profiles, publish photos/videos, like/comment, connect with teammates and view results.

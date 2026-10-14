@@ -14,7 +14,7 @@ from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
 from django.db import transaction
@@ -22,10 +22,12 @@ from django.db.utils import IntegrityError
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.static import serve
 from django.views.decorators.http import require_POST
+from urllib.parse import urlencode
 
 from .ai import answer_sports_question, create_scout_insight
 from .models import AccountProfile, AIPerformanceClaim, Athlete, AthletePost, AthleteResult, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
@@ -1025,3 +1027,49 @@ def dashboard(request):
 		'role': AccountProfile.Role.SELECTOR,
 		'ai_athletes': Athlete.objects.all().order_by('full_name'),
 	})
+
+
+@login_required(login_url='admin:login')
+def admin_users(request):
+	if not request.user.is_superuser:
+		raise PermissionDenied
+	search = request.GET.get('q', '').strip()[:100]
+	users = User.objects.select_related('account_profile', 'athlete_profile').order_by('-date_joined', 'username')
+	if search:
+		users = users.filter(
+			Q(username__icontains=search)
+			| Q(email__icontains=search)
+			| Q(first_name__icontains=search)
+			| Q(last_name__icontains=search)
+			| Q(account_profile__mobile__icontains=search)
+			| Q(athlete_profile__mobile_number__icontains=search)
+			| Q(athlete_profile__full_name__icontains=search)
+		)
+	page_obj = Paginator(users, 25).get_page(request.GET.get('page'))
+	return render(request, 'admin_users.html', {
+		'page_obj': page_obj,
+		'search': search,
+		'result_count': page_obj.paginator.count,
+	})
+
+
+@login_required(login_url='admin:login')
+@require_POST
+def admin_toggle_user_active(request, user_id):
+	if not request.user.is_superuser:
+		raise PermissionDenied
+	user = get_object_or_404(User, pk=user_id)
+	if user.is_staff or user.is_superuser:
+		messages.error(request, 'Staff and administrator accounts must be managed in Django admin.')
+	else:
+		user.is_active = not user.is_active
+		user.save(update_fields=('is_active',))
+		messages.success(
+			request,
+			f'{user.get_username()} has been {"activated" if user.is_active else "deactivated"}.',
+		)
+	search = request.POST.get('q', '').strip()[:100]
+	url = reverse('admin-users')
+	if search:
+		url = f'{url}?{urlencode({"q": search})}'
+	return redirect(url)

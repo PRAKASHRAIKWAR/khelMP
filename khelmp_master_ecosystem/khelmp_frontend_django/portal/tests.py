@@ -831,3 +831,80 @@ class AIReviewAndSearchTests(TestCase):
         post_view = self.client.get(f'/feed/?post_id={post.pk}')
         self.assertContains(post_view, 'Bhopal cricket practice')
         self.assertEqual(len(post_view.context['posts']), 1)
+
+
+class AdminUserPanelTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username='site-admin',
+            email='site-admin@example.com',
+            password='Test-Only-Admin-Password-2026!',
+        )
+        self.player = User.objects.create_user(
+            username='panel-player',
+            email='panel-player@example.com',
+            password='Test-Only-Player-Password-2026!',
+        )
+        AccountProfile.objects.create(
+            user=self.player,
+            role=AccountProfile.Role.PLAYER,
+            mobile='+919123456780',
+            mobile_verified=True,
+        )
+
+    def test_dashboard_requires_a_superuser(self):
+        response = self.client.get('/admin/users/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/admin/login/', response['Location'])
+
+        self.client.force_login(self.player)
+        response = self.client.get('/admin/users/')
+        self.assertEqual(response.status_code, 403)
+
+    def test_superuser_can_search_and_view_accounts(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get('/admin/users/', {'q': '9123456780'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Registered accounts')
+        self.assertContains(response, 'panel-player')
+        self.assertContains(response, '+919123456780')
+        self.assertNotContains(response, 'site-admin@example.com')
+
+    def test_superuser_can_suspend_and_reactivate_player_accounts(self):
+        self.client.force_login(self.admin)
+
+        suspended = self.client.post(f'/admin/users/{self.player.pk}/toggle-active/')
+        self.assertRedirects(suspended, '/admin/users/')
+        self.player.refresh_from_db()
+        self.assertFalse(self.player.is_active)
+
+        reactivated = self.client.post(f'/admin/users/{self.player.pk}/toggle-active/')
+        self.assertRedirects(reactivated, '/admin/users/')
+        self.player.refresh_from_db()
+        self.assertTrue(self.player.is_active)
+
+    def test_superuser_cannot_change_staff_or_administrator_accounts_here(self):
+        staff = User.objects.create_user(
+            username='panel-staff',
+            password='Test-Only-Staff-Password-2026!',
+            is_staff=True,
+        )
+        other_admin = User.objects.create_superuser(
+            username='panel-admin-two',
+            email='panel-admin-two@example.com',
+            password='Test-Only-Admin-Password-2026!',
+        )
+        self.client.force_login(self.admin)
+
+        for user in (staff, other_admin):
+            response = self.client.post(f'/admin/users/{user.pk}/toggle-active/')
+            self.assertRedirects(response, '/admin/users/')
+            user.refresh_from_db()
+            self.assertTrue(user.is_active)
+
+    def test_account_toggle_rejects_get_requests(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(f'/admin/users/{self.player.pk}/toggle-active/')
+        self.assertEqual(response.status_code, 405)

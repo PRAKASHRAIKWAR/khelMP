@@ -604,6 +604,26 @@ input[type="file"]::file-selector-button {
 .search-post strong { font-size: 12px; }
 .search-post time { color: var(--muted); font-size: 10px; }
 .search-post p { margin: 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.admin-users-layout { width: min(1000px, calc(100% - 48px)); margin: 30px auto 60px; }
+.admin-users-count { display: grid; justify-items: end; color: var(--muted); font-size: 11px; }
+.admin-users-count strong { color: var(--forest); font-family: Georgia, "Times New Roman", serif; font-size: 30px; font-weight: 600; line-height: 1; }
+.admin-users-search { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; gap: 10px; }
+.admin-users-search .field { gap: 5px; }
+.admin-user-list { display: grid; gap: 10px; }
+.admin-user-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 19px; }
+.admin-user-details { min-width: 0; }
+.admin-user-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.admin-user-heading h2 { margin: 0; color: var(--forest); font-size: 15px; overflow-wrap: anywhere; }
+.admin-user-contact, .admin-user-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 0; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.admin-user-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; }
+.admin-user-status, .admin-account-status { font-size: 11px; font-weight: 800; white-space: nowrap; }
+.admin-account-status.is-active { color: #286247; }
+.admin-account-status.is-inactive { color: var(--danger); }
+.admin-account-note { max-width: 140px; color: var(--muted); font-size: 10px; text-align: right; }
+.button-danger { background: var(--danger); color: #fff; }
+.button-danger:hover { background: #7f2d26; }
+.admin-users-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.admin-users-pagination > span { color: var(--muted); font-size: 11px; }
 
 @media (max-width: 900px) {
     .page-grid { grid-template-columns: minmax(0, 1fr); }
@@ -704,4 +724,9 @@ input[type="file"]::file-selector-button {
     .gemini-dock { right: 12px; bottom: 12px; }
     .gemini-dock-panel { width: min(360px, calc(100vw - 24px)); }
     .gemini-dock-form .button { width: 100%; }
+    .admin-users-layout { width: calc(100% - 28px); margin: 20px auto 40px; }
+    .admin-user-card { align-items: flex-start; flex-direction: column; gap: 12px; padding: 14px; }
+    .admin-user-actions { width: 100%; justify-content: space-between; }
+    .admin-user-actions .button { min-height: 40px; }
+    .admin-account-note { max-width: none; }
 }
