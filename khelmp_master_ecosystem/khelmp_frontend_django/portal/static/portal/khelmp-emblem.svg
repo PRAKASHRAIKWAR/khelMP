@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 64" role="img" aria-labelledby="title">
+  <title id="title">KhelMP KMP athlete shield</title>
+  <path d="M12 3h56a9 9 0 0 1 9 9v26c0 12-14 20-37 24C17 58 3 50 3 38V12a9 9 0 0 1 9-9Z" fill="#10392f"/>
+  <path d="M10 48c13-17 30-27 59-30M12 55c12-12 27-20 49-24" fill="none" stroke="#c7df62" stroke-linecap="round" stroke-width="2" opacity=".6"/>
+  <path d="M14 43V21m0 11 13-12M14 32l13 12M33 43V20l9 12 9-12v23m7 0V20h6a7 7 0 0 1 0 14h-6" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+  <path d="m57 10 8 0-4 6" fill="none" stroke="#dc6b3f" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
+</svg>

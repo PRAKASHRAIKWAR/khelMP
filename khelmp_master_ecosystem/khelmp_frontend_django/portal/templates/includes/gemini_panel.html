@@ -1,0 +1,26 @@
+<section class="gemini-panel" aria-labelledby="gemini-title">
+    <div class="gemini-heading">
+        <span class="gemini-mark">AI</span>
+        <div><h2 id="gemini-title">Gemini scout insight</h2><p>Insight based only on recorded profile data and results.</p></div>
+    </div>
+    {% if request.session.gemini_insight %}
+        <div class="gemini-result"><strong>{{ request.session.gemini_insight_athlete }}</strong><p>{{ request.session.gemini_insight }}</p></div>
+    {% endif %}
+    <form method="POST" action="{% url 'gemini-insight' %}" class="gemini-form">
+        {% csrf_token %}
+        <input type="hidden" name="return_to" value="{{ request.get_full_path }}">
+        {% if role == 'selector' %}
+            {% if athlete %}<input type="hidden" name="athlete_id" value="{{ athlete.pk }}">
+            {% else %}
+                <label class="sr-only" for="gemini-athlete">Choose athlete for Gemini insight</label>
+                <select class="control" id="gemini-athlete" name="athlete_id" required>
+                    <option value="">Choose an athlete</option>
+                    {% for choice in ai_athletes %}<option value="{{ choice.pk }}">{{ choice.full_name }} · {{ choice.sport_category }}</option>{% endfor %}
+                </select>
+            {% endif %}
+        {% else %}
+            <input type="hidden" name="athlete_id" value="{{ athlete.pk }}">
+        {% endif %}
+        <button class="button button-ai" type="submit">Generate insight</button>
+    </form>
+</section>

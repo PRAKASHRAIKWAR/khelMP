@@ -1,0 +1,41 @@
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-khelmp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-khelmp-local-password}
+      POSTGRES_DB: ${POSTGRES_DB:-khelmp}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-khelmp} -d ${POSTGRES_DB:-khelmp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./khelmp_backend_fastapi
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-khelmp}:${POSTGRES_PASSWORD:-khelmp-local-password}@database:5432/${POSTGRES_DB:-khelmp}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_MODEL_FALLBACKS: ${GEMINI_MODEL_FALLBACKS:-gemini-flash-latest,gemini-3.7-flash,gemini-3.5-flash,gemini-2.5-flash}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:8000,http://localhost:8000}
+      AUTO_CREATE_SCHEMA: "false"
+      UPLOAD_DIR: /data/uploads
+      MAX_UPLOAD_BYTES: 104857600
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - api_uploads:/data/uploads
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  api_uploads:

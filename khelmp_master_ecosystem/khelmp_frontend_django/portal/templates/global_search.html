@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KhelMP | Search</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+    <header class="site-header"><div class="header-inner">
+        <a class="brand" href="{% url 'feed' %}"><img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt=""><span class="brand-copy">KhelMP<small>Search</small></span></a>
+        <nav class="feed-nav"><a class="button button-secondary button-small" href="{% url 'feed' %}">Community feed</a>{% include 'includes/account_avatar.html' %}</nav>
+    </div></header>
+    {% include 'includes/global_search_bar.html' %}
+    <main class="records-layout search-layout">
+        <div class="dashboard-top"><div><p class="eyebrow eyebrow-dark">KhelMP discovery</p><h1>Search</h1><p>{% if query %}Results for “{{ query }}”{% else %}Search the player community and public feed{% endif %}</p></div></div>
+        {% if query %}
+            <section class="panel search-results"><div class="panel-heading"><div><h2>Players</h2><p>Public sports profile details only</p></div></div>
+                <div class="people-list">{% for player in players %}<article class="person-row"><div class="person-avatar">{% if player.athlete_profile.passport_photo %}<img src="{% url 'protected-media' player.athlete_profile.passport_photo.name %}" alt="">{% else %}{{ player.athlete_profile.full_name|first|upper }}{% endif %}</div><div class="person-info"><strong>{{ player.athlete_profile.full_name }}</strong><span>{{ player.athlete_profile.sport_category }} · {{ player.athlete_profile.district }}</span></div><div class="person-actions"><a class="button button-secondary button-small" href="{% url 'people' %}?q={{ player.athlete_profile.full_name|urlencode }}">Open player</a></div></article>{% empty %}<p class="people-empty">No matching players.</p>{% endfor %}</div>
+            </section>
+            <section class="panel search-results"><div class="panel-heading"><div><h2>Posts</h2><p>Community captions that match your search</p></div></div>
+                <div class="search-post-list">{% for post in posts %}<article class="search-post"><div><strong>{% if post.author.athlete_profile %}{{ post.author.athlete_profile.full_name }}{% else %}{{ post.author.username }}{% endif %}</strong><time>{{ post.created_at|date:'M j, Y' }}</time></div><p>{{ post.caption|default:'Photo/video post' }}</p><a class="link-action" href="{% url 'feed' %}?post_id={{ post.pk }}#post-{{ post.pk }}">View post</a></article>{% empty %}<p class="people-empty">No matching post captions.</p>{% endfor %}</div>
+            </section>
+            <section class="panel search-results"><div class="panel-heading"><div><h2>Results</h2><p>{% if role == 'selector' %}Recorded player performances{% else %}Your recorded performances{% endif %}</p></div></div>
+                <div class="search-post-list">{% for result in results %}<article class="search-post"><div><strong>{{ result.athlete.full_name }} · {{ result.event_name }}</strong><time>{{ result.event_date }}</time></div><p>{{ result.result }}{% if result.high_score %} · High score {{ result.high_score }}{% endif %}</p></article>{% empty %}<p class="people-empty">No matching results available to this account.</p>{% endfor %}</div>
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>

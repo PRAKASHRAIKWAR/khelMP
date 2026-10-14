@@ -1,0 +1,12 @@
+<a class="account-chip" href="{% if request.user.athlete_profile %}{% url 'player-profile' %}{% else %}{% url 'dashboard' %}{% endif %}" aria-label="Open {% if request.user.athlete_profile %}{{ request.user.athlete_profile.full_name }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %} profile">
+    <span class="account-avatar" aria-hidden="true">
+        {% if request.user.athlete_profile.passport_photo %}
+            <img src="{% url 'protected-media' request.user.athlete_profile.passport_photo.name %}" alt="">
+        {% elif request.user.athlete_profile %}
+            {{ request.user.athlete_profile.full_name|first|upper }}
+        {% else %}
+            {{ request.user.get_full_name|default:request.user.username|first|upper }}
+        {% endif %}
+    </span>
+    <span class="account-name">{% if request.user.athlete_profile %}{{ request.user.athlete_profile.full_name }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</span>
+</a>

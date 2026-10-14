@@ -1,0 +1,122 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | Selector dashboard</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'dashboard' %}">
+                <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
+                <span class="brand-copy">KhelMP<small>Selector dashboard</small></span>
+            </a>
+            <div class="operator">
+                <a class="button button-secondary button-small" href="{% url 'records' %}">Results & records</a>
+                <a class="button button-secondary button-small" href="{% url 'people' %}">Search players</a>
+                <a class="button button-secondary button-small" href="{% url 'feed' %}">Community feed</a>
+                {% include 'includes/account_avatar.html' %}
+                <a class="button button-secondary button-small" href="{% url 'logout' %}">Sign out</a>
+            </div>
+        </div>
+    </header>
+    {% include 'includes/global_search_bar.html' %}
+
+    <main class="page-shell">
+        {% include 'includes/gemini_panel.html' %}
+        <div class="dashboard-top">
+            <div>
+                <p class="eyebrow" style="color: var(--orange);">Athlete management</p>
+                <h1>Talent registry</h1>
+                <p>Search and review submitted athlete profiles.</p>
+            </div>
+            <span class="sport-tag">{{ athletes|length }} matching profiles</span>
+        </div>
+
+        <section class="panel filter-panel" aria-label="Filter athlete profiles">
+            <form class="filter-form" method="GET">
+                <div class="field">
+                    <label for="search_name">Athlete name</label>
+                    <input class="control" id="search_name" type="search" name="search_name" placeholder="Search by name" value="{{ request.GET.search_name }}">
+                </div>
+                <div class="field">
+                    <label for="filter_sport">Sport</label>
+                    <select class="control" id="filter_sport" name="filter_sport">
+                        <option value="">All sports</option>
+                        <option value="Athletics" {% if request.GET.filter_sport == 'Athletics' %}selected{% endif %}>Athletics</option>
+                        <option value="Badminton" {% if request.GET.filter_sport == 'Badminton' %}selected{% endif %}>Badminton</option>
+                        <option value="Basketball" {% if request.GET.filter_sport == 'Basketball' %}selected{% endif %}>Basketball</option>
+                        <option value="Boxing" {% if request.GET.filter_sport == 'Boxing' %}selected{% endif %}>Boxing</option>
+                        <option value="Cricket" {% if request.GET.filter_sport == 'Cricket' %}selected{% endif %}>Cricket</option>
+                        <option value="Football" {% if request.GET.filter_sport == 'Football' %}selected{% endif %}>Football</option>
+                        <option value="Hockey" {% if request.GET.filter_sport == 'Hockey' %}selected{% endif %}>Hockey</option>
+                        <option value="Kabaddi" {% if request.GET.filter_sport == 'Kabaddi' %}selected{% endif %}>Kabaddi</option>
+                        <option value="Swimming" {% if request.GET.filter_sport == 'Swimming' %}selected{% endif %}>Swimming</option>
+                        <option value="Wrestling" {% if request.GET.filter_sport == 'Wrestling' %}selected{% endif %}>Wrestling</option>
+                        <option value="Volleyball" {% if request.GET.filter_sport == 'Volleyball' %}selected{% endif %}>Volleyball</option>
+                        <option value="Other" {% if request.GET.filter_sport == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <button class="button" type="submit">Apply filters</button>
+                <a class="button button-secondary" href="{% url 'dashboard' %}">Clear</a>
+            </form>
+        </section>
+
+        <section class="panel" aria-labelledby="profiles-title">
+            <div class="panel-heading">
+                <div>
+                    <h2 id="profiles-title">Athlete profiles</h2>
+                    <p>Personal details, sport category and available trial documents</p>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="registry-table data-table">
+                    <thead>
+                        <tr>
+                            <th>Registration ID</th>
+                            <th>Profile</th>
+                            <th>Sport</th>
+                            <th>District / age group</th>
+                            <th>Performance</th>
+                            <th>Documents</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for athlete in athletes %}
+                            <tr>
+                                <td class="registry-id"><a class="link-action" href="{% url 'athlete-record' athlete.pk %}">{{ athlete.registration_number }}</a></td>
+                                <td class="credentials">
+                                    <div class="profile-cell">
+                                        <span class="thumbnail">
+                                            {% if athlete.passport_photo %}<img src="{% url 'protected-media' athlete.passport_photo.name %}" alt="{{ athlete.full_name }}">
+                                            {% else %}{{ athlete.full_name|first|upper }}{% endif %}
+                                        </span>
+                                        <span><strong>{{ athlete.full_name }}</strong><span class="subline">{{ athlete.mobile_number }}{% if athlete.email %} · {{ athlete.email }}{% endif %}</span></span>
+                                    </div>
+                                </td>
+                                <td><span class="sport-tag">{{ athlete.sport_category }}</span><span class="subline">{{ athlete.specialization|default:"No specialization" }}</span></td>
+                                <td>{{ athlete.district }}<span class="subline">{{ athlete.age_group|default:"Age group not provided" }}</span></td>
+                                <td>Height: {{ athlete.height_cm|default:"-" }} cm<span class="subline">Weight: {{ athlete.weight_kg|default:"-" }} kg · {{ athlete.years_of_experience }} yrs</span></td>
+                                <td>
+                                    <div class="action-links">
+                                        {% if athlete.id_proof_pdf %}<a class="link-action" href="{% url 'protected-media' athlete.id_proof_pdf.name %}" target="_blank" rel="noopener">Open ID PDF</a>{% endif %}
+                                        {% if athlete.video_file %}<a class="link-action link-action-warm" href="{% url 'protected-media' athlete.video_file.name %}" target="_blank" rel="noopener">View trial</a>{% endif %}
+                                        {% if not athlete.id_proof_pdf and not athlete.video_file %}<span class="subline">No documents</span>{% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td class="empty-state" colspan="6">No athlete profiles match these filters.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    {% include 'includes/gemini_widget.html' %}
+</body>
+</html>

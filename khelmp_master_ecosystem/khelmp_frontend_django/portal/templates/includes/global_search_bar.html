@@ -1,0 +1,7 @@
+<div class="global-search-strip">
+    <form class="global-search-form" method="get" action="{% url 'global-search' %}" role="search">
+        <label class="sr-only" for="global-search-input">Search KhelMP</label>
+        <input class="control" id="global-search-input" name="q" type="search" maxlength="100" value="{{ query|default:'' }}" placeholder="Search players, sports, posts or results">
+        <button class="button button-warm" type="submit">Search</button>
+    </form>
+</div>

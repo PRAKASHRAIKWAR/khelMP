@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KhelMP | Athlete results</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+    <a class="brand" href="{% url 'feed' %}"><img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt=""><span class="brand-copy">KhelMP<small>{% if is_selector %}Selector records{% else %}My results{% endif %}</small></span></a>
+    <nav class="feed-nav"><a class="button button-secondary button-small" href="{% url 'feed' %}">Community feed</a><a class="button button-secondary button-small" href="{% url 'people' %}">Players</a>{% if is_selector %}<a class="button button-secondary button-small" href="{% url 'dashboard' %}">Athlete registry</a>{% else %}<a class="button button-secondary button-small" href="{% url 'player-profile' %}">My profile</a>{% endif %}{% include 'includes/account_avatar.html' %}<a class="button button-secondary button-small" href="{% url 'logout' %}">Sign out</a></nav>
+</div></header>
+{% include 'includes/global_search_bar.html' %}
+<main class="records-layout">
+    {% include 'includes/gemini_panel.html' %}
+    <div class="dashboard-top"><div><p class="eyebrow eyebrow-dark">Performance records</p><h1>{% if is_selector %}Athlete results{% else %}My results{% endif %}</h1><p>{% if is_selector %}Selector-only event results and recorded high scores.{% else %}Your recorded competition results and high scores.{% endif %}</p></div><span class="sport-tag">{{ results|length }} records</span></div>
+    {% if is_selector %}
+    <section class="panel result-entry">
+        <div class="panel-heading"><div><h2>Add event result</h2><p>Only selectors can add or review the full athlete result ledger.</p></div></div>
+        <form method="POST" class="result-form">
+            {% csrf_token %}
+            <div class="field"><label for="athlete_id">Athlete</label><select class="control" id="athlete_id" name="athlete_id" required><option value="">Choose athlete</option>{% for item in athletes %}<option value="{{ item.pk }}">{{ item.full_name }} · {{ item.sport_category }} · {{ item.district }}</option>{% endfor %}</select></div>
+            <div class="field"><label for="event_name">Event</label><input class="control" id="event_name" name="event_name" maxlength="160" placeholder="e.g. State 100 m final" required></div>
+            <div class="field"><label for="result">Result / placement</label><input class="control" id="result" name="result" maxlength="160" placeholder="e.g. 11.42 sec · Gold" required></div>
+            <div class="field"><label for="high_score">High score / best mark</label><input class="control" id="high_score" name="high_score" maxlength="80" placeholder="e.g. 11.42 sec"></div>
+            <div class="field"><label for="event_date">Event date</label><input class="control" id="event_date" name="event_date" type="date" required></div>
+            <div class="field"><label for="location">Venue</label><input class="control" id="location" name="location" maxlength="120"></div>
+            <div class="field field-wide"><label for="notes">Selector notes</label><textarea class="control" id="notes" name="notes" rows="2" placeholder="Optional verified event notes"></textarea></div>
+            <button class="button button-warm" type="submit">Save result</button>
+        </form>
+    </section>
+    {% if pending_claims %}
+    <section class="panel claim-review" aria-labelledby="claim-review-title">
+        <div class="panel-heading"><div><h2 id="claim-review-title">AI-detected score claims</h2><p>Player-post scores are unverified until you review them.</p></div><span class="sport-tag">{{ pending_claims|length }} pending</span></div>
+        <div class="table-wrap"><table class="registry-table"><thead><tr><th>Player</th><th>Claim</th><th>Post caption</th><th>Media screen</th><th>Review</th></tr></thead><tbody>
+        {% for claim in pending_claims %}<tr><td><strong>{{ claim.athlete.full_name }}</strong><span class="subline">{{ claim.athlete.sport_category }} · {{ claim.athlete.district }}</span></td><td>{{ claim.runs }} runs off {{ claim.balls }} balls{% if claim.is_high_score_candidate %}<span class="subline">Possible high score</span>{% endif %}</td><td>{{ claim.source_post.caption|default:'No caption' }}</td><td>{{ claim.source_post.get_media_type_display }} · {{ claim.source_post.get_media_ai_status_display|default:claim.source_post.media_ai_status }}{% if claim.source_post.media_ai_confidence %} ({{ claim.source_post.media_ai_confidence }}%){% endif %}</td><td><form class="claim-review-actions" method="post">{% csrf_token %}<input type="hidden" name="action" value="review_ai_claim"><input type="hidden" name="claim_id" value="{{ claim.pk }}"><button class="button button-small" name="decision" value="approve" type="submit">Approve</button><button class="button button-secondary button-small" name="decision" value="reject" type="submit">Reject</button></form></td></tr>{% endfor %}
+        </tbody></table></div>
+    </section>
+    {% endif %}
+    {% endif %}
+    {% if messages %}<div class="notice-list">{% for message in messages %}<div class="notice {% if message.tags == 'error' %}notice-error{% endif %}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    <section class="panel">
+        <div class="panel-heading"><div><h2>Recorded performances</h2><p>{% if is_selector %}Full selector view{% else %}Your personal results only{% endif %}</p></div></div>
+        <div class="table-wrap"><table class="registry-table records-table"><thead><tr>{% if is_selector %}<th>Athlete</th>{% endif %}<th>Event</th><th>Result</th><th>High score</th><th>Date / venue</th>{% if is_selector %}<th>Record</th>{% endif %}</tr></thead><tbody>
+        {% for item in results %}<tr>{% if is_selector %}<td><a class="link-action" href="{% url 'athlete-record' item.athlete_id %}">{{ item.athlete.full_name }}</a><span class="subline">{{ item.athlete.sport_category }} · {{ item.athlete.district }}</span></td>{% endif %}<td>{{ item.event_name }}{% if is_selector and item.notes %}<span class="subline">{{ item.notes }}</span>{% endif %}</td><td><strong>{{ item.result }}</strong></td><td>{{ item.high_score|default:'—' }}</td><td>{{ item.event_date }}{% if item.location %}<span class="subline">{{ item.location }}</span>{% endif %}</td>{% if is_selector %}<td>{{ item.entered_by.username|default:'—' }}</td>{% endif %}</tr>{% empty %}<tr><td colspan="{% if is_selector %}6{% else %}4{% endif %}" class="empty-state">No result records yet.</td></tr>{% endfor %}
+        </tbody></table></div>
+    </section>
+</main>
+    {% include 'includes/gemini_widget.html' %}
+</body>
+</html>

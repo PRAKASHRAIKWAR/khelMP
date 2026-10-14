@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KhelMP | Chat with {{ friend.athlete_profile.full_name }}</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+    <header class="site-header"><div class="header-inner">
+        <a class="brand" href="{% url 'chat-inbox' %}"><img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt=""><span class="brand-copy">KhelMP<small>Friend chat</small></span></a>
+        <nav class="feed-nav" aria-label="Main navigation"><a class="button button-secondary button-small" href="{% url 'chat-inbox' %}">All messages</a><a class="button button-secondary button-small" href="{% url 'people' %}">Friends</a>{% include 'includes/account_avatar.html' %}</nav>
+    </div></header>
+    {% include 'includes/global_search_bar.html' %}
+    <main class="records-layout chat-layout">
+        <section class="panel chat-panel" aria-label="Conversation with {{ friend.athlete_profile.full_name }}">
+            <header class="chat-thread-header">
+                <a class="chat-back" href="{% url 'chat-inbox' %}" aria-label="Back to messages">‹</a>
+                <span class="person-avatar">{% if friend.athlete_profile.passport_photo %}<img src="{% url 'protected-media' friend.athlete_profile.passport_photo.name %}" alt="">{% else %}{{ friend.athlete_profile.full_name|first|upper }}{% endif %}</span>
+                <div><h1>{{ friend.athlete_profile.full_name }}</h1><p>{{ friend.athlete_profile.sport_category }} · {{ friend.athlete_profile.district }}</p></div>
+            </header>
+            <ol class="chat-messages" id="chat-messages" aria-live="polite" data-last-id="{{ last_message_id }}" data-updates-url="{% url 'chat-updates' friend.pk %}">
+                {% for message in messages_list %}
+                    <li class="chat-bubble {% if message.sender_id == request.user.pk %}is-own{% endif %}" data-message-id="{{ message.pk }}"><p>{{ message.text }}</p><time>{{ message.created_at|date:'M j, H:i' }}</time></li>
+                {% empty %}
+                    <li class="chat-first-message">Say hello and cheer each other on.</li>
+                {% endfor %}
+            </ol>
+            <form class="chat-compose" id="chat-form" method="post" action="{% url 'chat-thread' friend.pk %}">
+                {% csrf_token %}
+                <label class="sr-only" for="chat-text">Message</label>
+                <textarea class="control" id="chat-text" name="text" rows="2" maxlength="2000" placeholder="Write a message…" required></textarea>
+                <button class="button button-warm" type="submit">Send</button>
+                <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+    </main>
+    <script src="{% static 'portal/chat.js' %}" defer></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<details class="gemini-dock">
+    <summary><span class="gemini-dock-mark">AI</span><span>Ask Gemini</span></summary>
+    <section class="gemini-dock-panel" aria-label="Gemini sports assistant">
+        <div class="gemini-heading"><span class="gemini-mark">AI</span><div><h2>Sports assistant</h2><p>Short questions about training, rules and athlete development.</p></div></div>
+        {% if request.session.gemini_answer %}<div class="gemini-result"><strong>{{ request.session.gemini_question }}</strong><p>{{ request.session.gemini_answer }}</p></div>{% endif %}
+        <form method="POST" action="{% url 'gemini-question' %}" class="gemini-dock-form">
+            {% csrf_token %}
+            <input type="hidden" name="return_to" value="{{ request.get_full_path }}">
+            <label class="sr-only" for="gemini-question">Ask a sports question</label>
+            <textarea class="control" id="gemini-question" name="question" rows="2" maxlength="500" placeholder="Ask a sports question…" required></textarea>
+            <button class="button button-ai" type="submit">Ask Gemini</button>
+        </form>
+    </section>
+</details>
