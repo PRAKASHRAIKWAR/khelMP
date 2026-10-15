@@ -70,7 +70,7 @@ The current website and new API are useful working foundations, but they are not
 - Anonymous visitors land on the sign-in screen; account creation and password recovery remain available from its links. Feed, profiles, player search, chat, records and Gemini questions require sign-in.
 - New player and selector accounts verify their phone by OTP; existing accounts sign in with their password and a one-time image code. The image code is an anti-automation check, not proof of phone or email ownership. OTP sign-in is disabled.
 - For local DEBUG mode without Twilio, the signup OTP is shown on the form for testing. Never enable this outside development. Production SMS requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` in the deployment environment; signup OTPs are hashed in the database, expire after five minutes, and allow at most five guesses.
-- Feed posts can be shared through the device's share sheet or by copying a post link.
+- Feed posts can be shared through the device's share sheet or by copying a post link; only the post's author can delete it, including from the admin interface.
 - The feed runs probabilistic Gemini media screening and labels uncertainty; cricket run/ball captions become unverified claims for selector review and are not written to the official result ledger until approved.
 - Players can edit profiles, publish photos/videos, like/comment, connect with teammates and view results.
 - Accepted friends can exchange private chat messages; unread counts and 3-second thread polling keep conversations current. Chat endpoints reject users who are not accepted friends.

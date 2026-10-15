@@ -18,7 +18,7 @@ from django.utils import timezone
 from PIL import Image
 from unittest.mock import patch
 
-from .admin import SelectorApplicationAdmin
+from .admin import AthletePostAdmin, SelectorApplicationAdmin
 from .login_captcha import SESSION_KEY, issue_login_captcha
 from .models import AccountProfile, AdminBootstrapState, Athlete, AthletePost, AthleteResult, AIPerformanceClaim, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 
@@ -83,6 +83,19 @@ class AthleteCommunityTests(TestCase):
         self.assertContains(response, 'Training session')
         self.assertContains(response, 'Like')
         self.assertContains(response, 'Add a comment')
+        self.assertNotContains(response, 'aria-label="Delete your post"')
+
+    def test_delete_button_is_shown_only_for_the_post_author(self):
+        own_post = AthletePost.objects.create(
+            author=self.player,
+            media=png_upload('own-delete-button.png'),
+            media_type=AthletePost.MediaType.PHOTO,
+        )
+
+        response = self.client.get('/feed/')
+
+        self.assertContains(response, f'action="/feed/post/{own_post.pk}/delete/"')
+        self.assertNotContains(response, f'action="/feed/post/{self.post.pk}/delete/"')
 
     def test_player_sees_recent_score_on_feed(self):
         AthleteResult.objects.create(
@@ -123,6 +136,36 @@ class AthleteCommunityTests(TestCase):
         self.assertFalse(AthletePost.objects.filter(pk=own_post.pk).exists())
         self.client.post(f'/feed/post/{self.post.pk}/delete/')
         self.assertTrue(AthletePost.objects.filter(pk=self.post.pk).exists())
+
+    def test_superuser_cannot_delete_another_users_post(self):
+        administrator = User.objects.create_superuser(
+            username='community-admin',
+            email='community-admin@example.com',
+            password='Test-Only-Password-2026!',
+        )
+        self.client.force_login(administrator)
+
+        response = self.client.post(f'/feed/post/{self.post.pk}/delete/')
+
+        self.assertRedirects(response, '/feed/')
+        self.assertTrue(AthletePost.objects.filter(pk=self.post.pk).exists())
+
+    def test_admin_delete_permission_is_limited_to_post_author(self):
+        administrator = User.objects.create_superuser(
+            username='community-admin',
+            email='community-admin@example.com',
+            password='Test-Only-Password-2026!',
+        )
+        admin_model = AthletePostAdmin(AthletePost, admin.site)
+        request = RequestFactory().get('/admin/portal/athletepost/')
+        request.user = administrator
+
+        self.assertFalse(admin_model.has_delete_permission(request, self.post))
+        self.assertFalse(admin_model.has_delete_permission(request))
+
+        request.user = self.post.author
+        self.assertTrue(admin_model.has_delete_permission(request, self.post))
+        self.assertFalse(admin_model.has_delete_permission(request))
 
     def test_players_only_see_their_own_results_and_selectors_see_all(self):
         AthleteResult.objects.create(

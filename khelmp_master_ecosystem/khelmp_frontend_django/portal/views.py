@@ -474,7 +474,7 @@ def delete_post(request, post_id):
 	if request.method != 'POST':
 		return redirect('feed')
 	post = get_object_or_404(AthletePost, pk=post_id)
-	if post.author_id != request.user.id and not request.user.is_superuser:
+	if post.author_id != request.user.id:
 		messages.error(request, 'You can remove only your own post.')
 		return redirect('feed')
 	post.delete()

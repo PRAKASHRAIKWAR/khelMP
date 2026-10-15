@@ -29,7 +29,10 @@ class AthleteResultAdmin(admin.ModelAdmin):
     list_filter = ('event_date', 'athlete__sport_category')
 
 
-admin.site.register(AthletePost)
+@admin.register(AthletePost)
+class AthletePostAdmin(admin.ModelAdmin):
+	def has_delete_permission(self, request, obj=None):
+		return obj is not None and obj.author_id == request.user.pk
 
 
 @admin.register(SelectorApplication)
