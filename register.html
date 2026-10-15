@@ -1,0 +1,117 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | Create account</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'home' %}">
+                <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
+                <span class="brand-copy">KhelMP<small>Join the community</small></span>
+            </a>
+            <a class="button button-secondary button-small" href="{% url 'login' %}">Sign in</a>
+        </div>
+    </header>
+    <main class="account-layout">
+        <section class="account-intro">
+            <p class="eyebrow">KhelMP community</p>
+            <h1>Make your progress visible.</h1>
+            <p>Players share training, match moments and milestones. Selectors can follow the community feed.</p>
+        </section>
+        <section class="account-panel">
+            <div class="account-tabs" role="group" aria-label="Account type">
+                <a class="account-tab {% if role == 'player' %}is-active{% endif %}" href="{% url 'register' %}?role=player">Player</a>
+                <a class="account-tab {% if role == 'selector' %}is-active{% endif %}" href="{% url 'register' %}?role=selector">Selector</a>
+            </div>
+            <h2>Create {{ role }} account</h2>
+            <p class="account-subtitle">Both account types open the same athlete community feed after signup.</p>
+            {% if form.non_field_errors %}
+                <div class="notice notice-error" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <form class="account-form" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="role" value="{{ role }}">
+                <div class="field">
+                    <label for="id_username">Username</label>
+                    <input class="control" id="id_username" name="username" type="text" value="{{ form.username.value|default:'' }}" autocomplete="username" required>
+                    {% if form.username.errors %}<span class="field-error">{{ form.username.errors|join:', ' }}</span>{% endif %}
+                </div>
+                {% if role == 'player' %}
+                    <div class="field-grid">
+                        <div class="field field-wide">
+                            <label for="full_name">Player name</label>
+                            <input class="control" id="full_name" name="full_name" type="text" maxlength="160" value="{{ request.POST.full_name|default:'' }}" required>
+                        </div>
+                        <div class="field">
+                            <label for="mobile_number">Mobile number</label>
+                            <input class="control" id="mobile_number" name="mobile_number" type="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" value="{{ request.POST.mobile_number|default:'' }}" required>
+                            <button class="button button-secondary button-small otp-send" type="button" data-send-otp data-otp-url="{% url 'send-phone-otp' %}" data-otp-purpose="signup" data-mobile-input="mobile_number" data-status-id="signup-otp-status">Send verification OTP</button>
+                            <p class="otp-status" id="signup-otp-status" role="status" aria-live="polite"></p>
+                        </div>
+                        <div class="field">
+                            <label for="signup-otp">Mobile OTP</label>
+                            <input class="control" id="signup-otp" name="mobile_otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+                        </div>
+                        <div class="field">
+                            <label for="district">District</label>
+                            <input class="control" id="district" name="district" type="text" maxlength="100" value="{{ request.POST.district|default:'' }}" required>
+                        </div>
+                        <div class="field field-wide">
+                            <label for="sport_category">Primary sport</label>
+                            <select class="control" id="sport_category" name="sport_category" required>
+                                <option value="" disabled {% if not request.POST.sport_category %}selected{% endif %}>Choose your sport</option>
+                                <option>Athletics</option><option>Badminton</option><option>Basketball</option>
+                                <option>Boxing</option><option>Cricket</option><option>Football</option>
+                                <option>Hockey</option><option>Kabaddi</option><option>Swimming</option>
+                                <option>Wrestling</option><option>Volleyball</option><option>Other</option>
+                            </select>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="field">
+                        <label for="mobile_number">Mobile number</label>
+                        <input class="control" id="mobile_number" name="mobile_number" type="tel" inputmode="tel" autocomplete="tel" value="{{ request.POST.mobile_number|default:'' }}" required>
+                        <button class="button button-secondary button-small otp-send" type="button" data-send-otp data-otp-url="{% url 'send-phone-otp' %}" data-otp-purpose="signup" data-mobile-input="mobile_number" data-status-id="signup-otp-status">Send verification OTP</button>
+                        <p class="otp-status" id="signup-otp-status" role="status" aria-live="polite"></p>
+                    </div>
+                    <div class="field">
+                        <label for="signup-otp">Mobile OTP</label>
+                        <input class="control" id="signup-otp" name="mobile_otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+                    </div>
+                    <div class="field">
+                        <label for="email">Approved application email</label>
+                        <input class="control" id="email" name="email" type="email" value="{{ request.POST.email|default:'' }}" autocomplete="email" required>
+                    </div>
+                    <div class="field">
+                        <label for="invite_code">Selector invitation code</label>
+                        <input class="control" id="invite_code" name="invite_code" type="password" autocomplete="off" required>
+                        <span class="field-hint">Use the one-time code sent by the KhelMP administrator after approval.</span>
+                    </div>
+                {% endif %}
+                <div class="field">
+                    <label for="id_password1">Password</label>
+                    <input class="control" id="id_password1" name="password1" type="password" autocomplete="new-password" required>
+                    <span class="field-hint">Use at least 12 characters. Avoid common passwords or personal details.</span>
+                    {% if form.password1.errors %}<span class="field-error">{{ form.password1.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="id_password2">Confirm password</label>
+                    <input class="control" id="id_password2" name="password2" type="password" autocomplete="new-password" required>
+                    {% if form.password2.errors %}<span class="field-error">{{ form.password2.errors|join:', ' }}</span>{% endif %}
+                </div>
+                <button class="button button-warm" type="submit">Create {{ role }} account</button>
+            </form>
+            {% if role == 'selector' %}<p class="account-switch">Need approval first? <a href="{% url 'selector-apply' %}">Apply for selector access</a></p>{% endif %}
+            <p class="account-switch">Already registered? <a href="{% url 'login' %}">Sign in</a></p>
+        </section>
+    </main>
+    <script src="{% static 'portal/account-auth.js' %}" defer></script>
+    {% include 'includes/gemini_widget.html' %}
+</body>
+</html>

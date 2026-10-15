@@ -31,6 +31,14 @@ class AthleteResultAdmin(admin.ModelAdmin):
 
 @admin.register(AthletePost)
 class AthletePostAdmin(admin.ModelAdmin):
+	readonly_fields = ('author',)
+
+	def has_add_permission(self, request):
+		return False
+
+	def has_change_permission(self, request, obj=None):
+		return obj is not None and obj.author_id == request.user.pk
+
 	def has_delete_permission(self, request, obj=None):
 		return obj is not None and obj.author_id == request.user.pk
 

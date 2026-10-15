@@ -1,0 +1,77 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | Edit post</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body class="feed-page">
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'feed' %}">
+                <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
+                <span class="brand-copy">KhelMP<small>Player community</small></span>
+            </a>
+            <a class="button button-secondary button-small" href="{% url 'feed' %}#post-{{ post.pk }}">Back to feed</a>
+        </div>
+    </header>
+    <main class="post-edit-layout">
+        <section class="panel post-edit-panel" aria-labelledby="edit-post-title">
+            <div class="post-edit-heading">
+                <span class="post-edit-kicker">YOUR COMMUNITY POST</span>
+                <h1 id="edit-post-title">Edit post</h1>
+                <p>Update the caption or replace the photo or video. Leave both media fields empty to keep the current media.</p>
+            </div>
+            {% if messages %}
+                <div class="notice-list" aria-live="polite">
+                    {% for message in messages %}<div class="notice {% if message.tags == 'error' %}notice-error{% endif %}">{{ message }}</div>{% endfor %}
+                </div>
+            {% endif %}
+            <div class="post-edit-current">
+                <span class="post-edit-kicker">CURRENT MEDIA</span>
+                <div class="post-media">
+                    {% if post.youtube_embed_url %}
+                        <iframe
+                            src="{{ post.youtube_embed_url }}"
+                            title="Current YouTube video"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            allowfullscreen
+                        ></iframe>
+                    {% elif post.media_type == 'video' and post.media %}
+                        <video controls preload="metadata" playsinline src="{% url 'protected-media' post.media.name %}">Your browser does not support video playback.</video>
+                    {% elif post.media %}
+                        <img src="{% url 'protected-media' post.media.name %}" alt="Current post photo">
+                    {% else %}
+                        <p class="post-edit-no-media">No media is attached to this post.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <form method="POST" enctype="multipart/form-data" class="post-edit-form">
+                {% csrf_token %}
+                <div class="field">
+                    <label for="edit-caption">Caption</label>
+                    <textarea class="control" id="edit-caption" name="caption" maxlength="500" rows="4" {% if caption_locked %}readonly aria-describedby="caption-lock-note"{% endif %}>{{ caption_value }}</textarea>
+                    {% if caption_locked %}<p class="field-hint" id="caption-lock-note">This caption is locked because its score claim has already been reviewed by a selector. You can still replace the media.</p>{% endif %}
+                </div>
+                <div class="field">
+                    <label for="edit-youtube-url">Replace with a YouTube link</label>
+                    <input class="control" id="edit-youtube-url" name="youtube_url" type="url" value="{{ youtube_value }}" placeholder="Paste a YouTube watch, Shorts or youtu.be link">
+                </div>
+                <div class="field">
+                    <label for="edit-media">Or replace with a photo/video file</label>
+                    <input class="control" id="edit-media" name="media" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm">
+                    <p class="field-hint">Choose a YouTube link or a file, not both. Existing media stays if you leave both empty.</p>
+                </div>
+                <div class="post-edit-actions">
+                    <a class="button button-secondary" href="{% url 'feed' %}#post-{{ post.pk }}">Cancel</a>
+                    <button class="button button-warm" type="submit">Save changes</button>
+                </div>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

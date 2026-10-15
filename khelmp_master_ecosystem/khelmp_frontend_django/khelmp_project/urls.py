@@ -43,6 +43,7 @@ urlpatterns = [
     path('register/', views.register_account, name='register'),
     path('selector/apply/', views.apply_as_selector, name='selector-apply'),
     path('feed/', views.feed, name='feed'),
+    path('feed/post/<int:post_id>/edit/', views.edit_post, name='edit-post'),
     path('feed/post/<int:post_id>/like/', views.like_post, name='like-post'),
     path('feed/post/<int:post_id>/comment/', views.comment_post, name='comment-post'),
     path('feed/post/<int:post_id>/delete/', views.delete_post, name='delete-post'),

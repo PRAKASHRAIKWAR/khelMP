@@ -1,0 +1,168 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | Community feed</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body class="feed-page">
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'feed' %}">
+                <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
+                <span class="brand-copy">KhelMP<small>Player community</small></span>
+            </a>
+            <nav class="feed-nav" aria-label="Main navigation">
+                <a class="button button-secondary button-small" href="{% url 'people' %}">Players</a>
+                <a class="button button-secondary button-small" href="{% url 'records' %}">{% if role == 'selector' %}Results & records{% else %}My results{% endif %}</a>
+                {% if role == 'player' %}<a class="button button-secondary button-small" href="{% url 'chat-inbox' %}">Messages</a>{% endif %}
+                {% if role == 'player' %}<a class="button button-secondary button-small" href="{% url 'player-profile' %}">My profile</a>{% endif %}
+                {% if role == 'selector' %}<a class="button button-secondary button-small" href="{% url 'dashboard' %}">Selector dashboard</a>{% endif %}
+                {% include 'includes/account_avatar.html' %}
+                <a class="button button-secondary button-small" href="{% url 'logout' %}">Sign out</a>
+            </nav>
+        </div>
+    </header>
+    {% include 'includes/global_search_bar.html' %}
+    <main class="feed-layout">
+        <aside class="feed-sidebar">
+            <section class="feed-profile panel">
+                <div class="profile-avatar">{% if athlete.passport_photo %}<img src="{% url 'protected-media' athlete.passport_photo.name %}" alt="">{% else %}{% if athlete %}{{ athlete.full_name|first|upper }}{% else %}{{ request.user.username|first|upper }}{% endif %}{% endif %}</div>
+                <h1>{% if athlete %}{{ athlete.full_name }}{% else %}{{ request.user.username }}{% endif %}</h1>
+                {% if athlete %}
+                    <p>{{ athlete.sport_category }}{% if athlete.specialization %} · {{ athlete.specialization }}{% endif %}</p>
+                    <span class="profile-location">{{ athlete.district }}{% if athlete.age_group %} · {{ athlete.age_group }}{% endif %}</span>
+                {% else %}
+                    <p>KhelMP selector</p>
+                    <span class="profile-location">Community observer</span>
+                {% endif %}
+            </section>
+            {% if athlete %}
+                <section class="feed-scores panel" aria-labelledby="recent-scores-title">
+                    <div class="feed-scores-heading"><h2 id="recent-scores-title">Recent results</h2><a href="{% url 'records' %}">View all</a></div>
+                    {% for item in recent_results %}
+                        <div class="feed-score-row"><strong>{{ item.result }}</strong><span>{{ item.event_name }}</span><small>{{ item.event_date }}{% if item.high_score %} · Best {{ item.high_score }}{% endif %}</small></div>
+                    {% empty %}
+                        <p class="feed-score-empty">Your verified scores will show here after a selector records a result.</p>
+                    {% endfor %}
+                </section>
+            {% endif %}
+            <section class="feed-note">
+                <span class="feed-note-mark">KM</span>
+                <p>A place for practice, competition and progress from athletes across Madhya Pradesh.</p>
+            </section>
+        </aside>
+
+        <section class="feed-stream" aria-label="Athlete community feed">
+            {% include 'includes/gemini_panel.html' %}
+            {% if messages %}
+                <div class="notice-list" aria-live="polite">
+                    {% for message in messages %}<div class="notice {% if message.tags == 'error' %}notice-error{% endif %}">{{ message }}</div>{% endfor %}
+                </div>
+            {% endif %}
+
+            {% if can_post %}
+                <section class="post-composer panel" aria-labelledby="composer-title">
+                    <div class="composer-heading">
+                        <span class="composer-avatar">{{ athlete.full_name|first|upper }}</span>
+                        <div><h2 id="composer-title">Share your progress</h2><p>Post a training moment, match clip or milestone.</p></div>
+                    </div>
+                    <form method="POST" enctype="multipart/form-data" class="composer-form">
+                        {% csrf_token %}
+                        <label class="sr-only" for="caption">Caption</label>
+                        <textarea class="control" id="caption" name="caption" maxlength="500" rows="3" placeholder="What are you working on today?"></textarea>
+                        <div class="composer-actions">
+                            <label class="media-picker" for="post-media"><span aria-hidden="true">＋</span> Add photo or video</label>
+                            <input class="sr-only" id="post-media" name="media" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm" required>
+                            <button class="button button-warm" type="submit">Share post</button>
+                        </div>
+                        <p class="composer-file" aria-live="polite">Choose an image or video, up to 100 MB.</p>
+                        <p class="media-disclosure">Media is sent to Google Gemini for automated screening. Its estimate is not proof of authenticity.</p>
+                    </form>
+                </section>
+            {% endif %}
+
+            {% for post in posts %}
+                <article class="post-card panel" id="post-{{ post.pk }}">
+                    <header class="post-header">
+                        <span class="post-avatar">{% if post.author.athlete_profile.passport_photo %}<img src="{% url 'protected-media' post.author.athlete_profile.passport_photo.name %}" alt="">{% else %}{% if post.author.athlete_profile %}{{ post.author.athlete_profile.full_name|first|upper }}{% else %}{{ post.author.username|first|upper }}{% endif %}{% endif %}</span>
+                        <div class="post-byline">
+                            <strong>{% if post.author.athlete_profile %}{{ post.author.athlete_profile.full_name }}{% else %}{{ post.author.username }}{% endif %}</strong>
+                            <span>{% if post.author.athlete_profile %}{{ post.author.athlete_profile.sport_category }} · {{ post.author.athlete_profile.district }}{% else %}KhelMP community{% endif %} · {{ post.created_at|date:"M j, Y · g:i A" }}</span>
+                        </div>
+                        <span class="post-type">{{ post.get_media_type_display }}</span>
+                        {% if post.author_id == request.user.id %}
+                            <form method="POST" action="{% url 'delete-post' post.pk %}" onsubmit="return confirm('Delete this post?')">
+                                {% csrf_token %}<button class="post-delete" type="submit" aria-label="Delete your post" title="Delete your post">Delete</button>
+                            </form>
+                        {% endif %}
+                    </header>
+                    <div class="post-media">
+                        {% if post.media_type == 'video' %}
+                            <video controls preload="metadata" playsinline src="{% url 'protected-media' post.media.name %}">Your browser does not support video playback.</video>
+                        {% else %}
+                            <img src="{% url 'protected-media' post.media.name %}" alt="Photo shared by {% if post.author.athlete_profile %}{{ post.author.athlete_profile.full_name }}{% else %}{{ post.author.username }}{% endif %}" loading="lazy">
+                        {% endif %}
+                    </div>
+                    {% if post.caption %}<p class="post-caption"><strong>{% if post.author.athlete_profile %}{{ post.author.athlete_profile.full_name }}{% else %}{{ post.author.username }}{% endif %}</strong> {{ post.caption }}</p>{% endif %}
+                    {% if post.author.athlete_profile.highest_achievement %}<p class="post-detail">Latest milestone · {{ post.author.athlete_profile.highest_achievement }}</p>{% endif %}
+                    {% if post.media_ai_status %}<aside class="media-ai-result status-{{ post.media_ai_status }}"><strong>AI media screening · {% if post.media_ai_status == 'likely_synthetic' %}Possible synthetic media{% elif post.media_ai_status == 'likely_camera' %}No strong synthetic cues detected{% elif post.media_ai_status == 'uncertain' %}Uncertain{% else %}Not screened{% endif %}</strong>{% if post.media_ai_confidence != None %}<span>{{ post.media_ai_confidence }}% confidence</span>{% endif %}<p>{{ post.media_ai_note }} This estimate is not proof of authenticity.</p></aside>{% endif %}
+                    {% if post.ai_performance_claim %}<p class="post-detail score-claim-note">Score claim · {{ post.ai_performance_claim.runs }} off {{ post.ai_performance_claim.balls }} balls · {{ post.ai_performance_claim.get_status_display }}{% if post.ai_performance_claim.is_high_score_candidate %} · possible new high score, pending selector review{% endif %}</p>{% endif %}
+                    <div class="post-interactions">
+                        <form method="POST" action="{% url 'like-post' post.pk %}">
+                            {% csrf_token %}<input type="hidden" name="return_to" value="{{ request.get_full_path }}">
+                            <button class="like-button {% if post.has_liked %}is-liked{% endif %}" type="submit" aria-pressed="{{ post.has_liked|yesno:'true,false' }}">{% if post.has_liked %}Liked{% else %}Like{% endif %} <span>{{ post.like_count }}</span></button>
+                        </form>
+                        <span class="comment-count">{{ post.comment_count }} comments</span>
+                        <button class="share-button" type="button" data-share-url="{{ request.scheme }}://{{ request.get_host }}{% url 'feed' %}#post-{{ post.pk }}" data-share-text="{{ post.caption|default:'Athlete update from KhelMP' }}" aria-label="Share this post">Share</button>
+                    </div>
+                    {% if post.recent_comments %}
+                        <div class="post-comments">
+                            {% for comment in post.recent_comments %}<p><strong>{% if comment.user.athlete_profile %}{{ comment.user.athlete_profile.full_name }}{% else %}{{ comment.user.username }}{% endif %}</strong> {{ comment.text }}</p>{% endfor %}
+                        </div>
+                    {% endif %}
+                    <form class="comment-form" method="POST" action="{% url 'comment-post' post.pk %}">
+                        {% csrf_token %}<input type="hidden" name="return_to" value="{{ request.get_full_path }}">
+                        <label class="sr-only" for="comment-{{ post.pk }}">Write a comment</label>
+                        <input class="control" id="comment-{{ post.pk }}" name="text" maxlength="500" placeholder="Add a comment…" required>
+                        <button class="comment-submit" type="submit">Post</button>
+                    </form>
+                </article>
+            {% empty %}
+                <section class="feed-empty panel">
+                    <span class="empty-sport-mark">KMP</span>
+                    <h2>The feed starts here</h2>
+                    <p>{% if can_post %}Share your first training photo or video with the KhelMP community.{% else %}Player training moments and competition updates will appear here.{% endif %}</p>
+                </section>
+            {% endfor %}
+            {% if page.has_other_pages %}
+                <nav class="feed-pagination" aria-label="Feed pages">
+                    {% if page.has_previous %}<a class="button button-secondary button-small" href="?page={{ page.previous_page_number }}">Newer posts</a>{% else %}<span></span>{% endif %}
+                    <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+                    {% if page.has_next %}<a class="button button-secondary button-small" href="?page={{ page.next_page_number }}">Older posts</a>{% else %}<span></span>{% endif %}
+                </nav>
+            {% endif %}
+        </section>
+
+        <aside class="feed-right-rail">
+            <p>KHELMP COMMUNITY</p>
+            <span>Built around the work athletes put in every day.</span>
+            {% if role == 'selector' %}<a href="{% url 'dashboard' %}">Open talent registry</a>{% endif %}
+        </aside>
+    </main>
+    <script>
+        const mediaInput = document.querySelector('#post-media');
+        const mediaLabel = document.querySelector('.composer-file');
+        if (mediaInput && mediaLabel) {
+            mediaInput.addEventListener('change', () => {
+                mediaLabel.textContent = mediaInput.files.length ? mediaInput.files[0].name : 'Choose an image or video, up to 100 MB.';
+            });
+        }
+    </script>
+    <script src="{% static 'portal/post-share.js' %}" defer></script>
+    {% include 'includes/gemini_widget.html' %}
+</body>
+</html>

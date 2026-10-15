@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KhelMP | Messages</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+    <header class="site-header"><div class="header-inner">
+        <a class="brand" href="{% url 'feed' %}"><img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt=""><span class="brand-copy">KhelMP<small>Messages</small></span></a>
+        <nav class="feed-nav" aria-label="Main navigation"><a class="button button-secondary button-small" href="{% url 'people' %}">Players & friends</a><a class="button button-secondary button-small" href="{% url 'feed' %}">Community feed</a>{% include 'includes/account_avatar.html' %}</nav>
+    </div></header>
+    {% include 'includes/global_search_bar.html' %}
+    <main class="records-layout chat-layout">
+        <div class="dashboard-top"><div><p class="eyebrow eyebrow-dark">Your team</p><h1>Messages</h1><p>Private conversations with your accepted friends.</p></div><a class="button button-secondary" href="{% url 'people' %}">Find friends</a></div>
+        <section class="panel chat-inbox" aria-label="Friend conversations">
+            {% for item in conversations %}
+                <a class="chat-conversation" href="{% url 'chat-thread' item.friend.pk %}">
+                    <span class="person-avatar">{% if item.friend.athlete_profile.passport_photo %}<img src="{% url 'protected-media' item.friend.athlete_profile.passport_photo.name %}" alt="">{% else %}{{ item.friend.athlete_profile.full_name|first|upper }}{% endif %}</span>
+                    <span class="chat-conversation-copy"><strong>{{ item.friend.athlete_profile.full_name }}</strong><span>{% if item.last_message %}{% if item.last_message.sender_id == request.user.pk %}You: {% endif %}{{ item.last_message.text }}{% else %}Start your conversation{% endif %}</span></span>
+                    <span class="chat-conversation-meta">{% if item.unread_count %}<span class="chat-unread">{{ item.unread_count }}</span>{% endif %}{% if item.last_message %}<time>{{ item.last_message.created_at|date:'M j, H:i' }}</time>{% endif %}</span>
+                </a>
+            {% empty %}
+                <div class="chat-empty"><span class="empty-sport-mark">KMP</span><h2>Your conversations start with friends</h2><p>Add a player and wait for them to accept. Then you can message each other here.</p><a class="button button-warm" href="{% url 'people' %}">Find players</a></div>
+            {% endfor %}
+        </section>
+    </main>
+</body>
+</html>

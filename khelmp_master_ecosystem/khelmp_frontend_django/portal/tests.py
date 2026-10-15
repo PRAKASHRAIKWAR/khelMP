@@ -97,6 +97,74 @@ class AthleteCommunityTests(TestCase):
         self.assertContains(response, f'action="/feed/post/{own_post.pk}/delete/"')
         self.assertNotContains(response, f'action="/feed/post/{self.post.pk}/delete/"')
 
+    def test_only_post_author_sees_edit_action(self):
+        own_post = AthletePost.objects.create(
+            author=self.player,
+            media_type=AthletePost.MediaType.VIDEO,
+            youtube_embed_url='https://www.youtube.com/embed/w6oyj6wJ9LU',
+        )
+
+        response = self.client.get('/feed/')
+
+        self.assertContains(response, f'href="/feed/post/{own_post.pk}/edit/"')
+        self.assertNotContains(response, f'href="/feed/post/{self.post.pk}/edit/"')
+
+    def test_post_author_can_edit_caption_without_replacing_media(self):
+        own_post = AthletePost.objects.create(
+            author=self.player,
+            media_type=AthletePost.MediaType.VIDEO,
+            youtube_embed_url='https://www.youtube.com/embed/w6oyj6wJ9LU',
+            caption='Before edit',
+        )
+
+        edit_page = self.client.get(f'/feed/post/{own_post.pk}/edit/')
+        response = self.client.post(f'/feed/post/{own_post.pk}/edit/', {'caption': 'After edit'})
+
+        self.assertEqual(edit_page.status_code, 200)
+        self.assertContains(edit_page, 'Save changes')
+        self.assertRedirects(response, f'/feed/#post-{own_post.pk}', fetch_redirect_response=False)
+        own_post.refresh_from_db()
+        self.assertEqual(own_post.caption, 'After edit')
+        self.assertEqual(own_post.youtube_embed_url, 'https://www.youtube.com/embed/w6oyj6wJ9LU')
+
+    def test_superuser_cannot_edit_another_users_post(self):
+        administrator = User.objects.create_superuser(
+            username='community-edit-admin',
+            email='community-edit-admin@example.com',
+            password='Test-Only-Password-2026!',
+        )
+        self.client.force_login(administrator)
+
+        response = self.client.post(f'/feed/post/{self.post.pk}/edit/', {'caption': 'Unauthorized change'})
+
+        self.assertEqual(response.status_code, 404)
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.caption, 'Training session')
+
+    def test_selectors_and_admins_can_publish_posts_under_their_own_accounts(self):
+        for user, caption in (
+            (self.selector, 'Selector community update'),
+            (
+                User.objects.create_superuser(
+                    username='community-post-admin',
+                    email='community-post-admin@example.com',
+                    password='Test-Only-Password-2026!',
+                ),
+                'Admin community update',
+            ),
+        ):
+            with self.subTest(username=user.username):
+                self.client.force_login(user)
+                response = self.client.post('/feed/', {
+                    'caption': caption,
+                    'youtube_url': 'https://youtube.com/shorts/w6oyj6wJ9LU',
+                })
+
+                self.assertRedirects(response, '/feed/')
+                post = AthletePost.objects.get(author=user, caption=caption)
+                self.assertEqual(post.media_type, AthletePost.MediaType.VIDEO)
+                self.assertContains(self.client.get('/feed/'), f'href="/feed/post/{post.pk}/edit/"')
+
     def test_player_sees_recent_score_on_feed(self):
         AthleteResult.objects.create(
             athlete=self.athlete,
@@ -137,6 +205,20 @@ class AthleteCommunityTests(TestCase):
         self.client.post(f'/feed/post/{self.post.pk}/delete/')
         self.assertTrue(AthletePost.objects.filter(pk=self.post.pk).exists())
 
+    def test_player_can_publish_a_youtube_post(self):
+        response = self.client.post('/feed/', {
+            'caption': 'Quick drill clip',
+            'youtube_url': 'https://youtube.com/shorts/w6oyj6wJ9LU?si=3TF3MSAqSMv9kRj4',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        feed_response = self.client.get('/feed/')
+        self.assertContains(feed_response, 'Your update has been published.')
+        post = AthletePost.objects.get(author=self.player, caption='Quick drill clip')
+        self.assertEqual(post.media_type, AthletePost.MediaType.VIDEO)
+        self.assertIn('youtube.com/embed/w6oyj6wJ9LU', post.youtube_embed_url)
+        self.assertContains(feed_response, 'youtube.com/embed/w6oyj6wJ9LU')
+
     def test_superuser_cannot_delete_another_users_post(self):
         administrator = User.objects.create_superuser(
             username='community-admin',
@@ -160,11 +242,16 @@ class AthleteCommunityTests(TestCase):
         request = RequestFactory().get('/admin/portal/athletepost/')
         request.user = administrator
 
+        self.assertFalse(admin_model.has_add_permission(request))
+        self.assertFalse(admin_model.has_change_permission(request, self.post))
+        self.assertFalse(admin_model.has_change_permission(request))
         self.assertFalse(admin_model.has_delete_permission(request, self.post))
         self.assertFalse(admin_model.has_delete_permission(request))
 
         request.user = self.post.author
+        self.assertTrue(admin_model.has_change_permission(request, self.post))
         self.assertTrue(admin_model.has_delete_permission(request, self.post))
+        self.assertIn('author', admin_model.get_readonly_fields(request, self.post))
         self.assertFalse(admin_model.has_delete_permission(request))
 
     def test_players_only_see_their_own_results_and_selectors_see_all(self):

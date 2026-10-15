@@ -1,0 +1,85 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | Account sign in</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'home' %}">
+                <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
+                <span class="brand-copy">KhelMP<small>Account sign in</small></span>
+            </a>
+            <a class="button button-secondary button-small" href="{% url 'register' %}">Create account</a>
+        </div>
+    </header>
+
+    <main class="login-layout">
+        <section class="login-aside">
+            <div>
+                <p class="eyebrow">Discover. Develop. Select. Succeed.</p>
+                <h1>Your KhelMP community</h1>
+                <p>Sign in to share your progress or follow athletes across Madhya Pradesh.</p>
+            </div>
+            <span class="aside-note">KhelMP · Athlete community</span>
+        </section>
+        <section class="login-main">
+            <div class="login-panel">
+                <span class="account-kicker">Your KhelMP account</span>
+                <h2>Sign in</h2>
+                <p>One KhelMP account opens your community feed.</p>
+                {% if messages %}
+                    <div class="notice-list" aria-live="polite">
+                        {% for message in messages %}<div class="notice {% if message.tags == 'error' %}notice-error{% endif %}">{{ message }}</div>{% endfor %}
+                    </div>
+                {% endif %}
+                {% if form.errors %}
+                    <div class="notice notice-error" role="alert">Username or password is incorrect. Please try again.</div>
+                {% endif %}
+                <form class="login-form" method="POST">
+                    {% csrf_token %}
+                    <div class="field">
+                        <label for="username">Email / Mobile / Username</label>
+                        <input class="control" id="username" name="username" type="text" autocomplete="username" required autofocus>
+                    </div>
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <input class="control" id="password" name="password" type="password" autocomplete="current-password" required>
+                    </div>
+                    <button class="button button-warm" type="submit">Sign in</button>
+                </form>
+                <details class="otp-alternative">
+                    <summary>Sign in with mobile OTP</summary>
+                    <form class="login-form otp-login-form" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="auth_method" value="otp">
+                        <div class="field">
+                            <label for="login-mobile">Mobile number</label>
+                            <div class="otp-entry">
+                                <input class="control" id="login-mobile" name="mobile_number" type="tel" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile" required>
+                                <button class="button button-secondary button-small" type="button" data-send-otp data-otp-url="{% url 'send-phone-otp' %}" data-otp-purpose="login" data-mobile-input="login-mobile" data-status-id="login-otp-status">Send OTP</button>
+                            </div>
+                        </div>
+                        <p class="otp-status" id="login-otp-status" role="status" aria-live="polite"></p>
+                        <div class="field">
+                            <label for="login-otp">6-digit OTP</label>
+                            <input class="control" id="login-otp" name="mobile_otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+                        </div>
+                        <button class="button button-warm" type="submit">Verify and sign in</button>
+                    </form>
+                </details>
+                <p class="account-switch"><a href="{% url 'password-reset' %}">Forgot password?</a></p>
+                <p class="account-switch">New to KhelMP? <a href="{% url 'register' %}">Create an account</a></p>
+                <a class="back-link" href="{% url 'register' %}">Create a player or selector account</a>
+            </div>
+        </section>
+    </main>
+    <script src="{% static 'portal/account-auth.js' %}" defer></script>
+    {% include 'includes/gemini_widget.html' %}
+</body>
+</html>

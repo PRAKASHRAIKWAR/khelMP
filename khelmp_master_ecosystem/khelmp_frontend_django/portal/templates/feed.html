@@ -67,20 +67,24 @@
             {% if can_post %}
                 <section class="post-composer panel" aria-labelledby="composer-title">
                     <div class="composer-heading">
-                        <span class="composer-avatar">{{ athlete.full_name|first|upper }}</span>
-                        <div><h2 id="composer-title">Share your progress</h2><p>Post a training moment, match clip or milestone.</p></div>
+                        <span class="composer-avatar">{% if athlete %}{{ athlete.full_name|first|upper }}{% else %}{{ request.user.username|first|upper }}{% endif %}</span>
+                        <div><h2 id="composer-title">{% if athlete %}Share your progress{% else %}Share a community update{% endif %}</h2><p>Post a training moment, match clip or milestone.</p></div>
                     </div>
                     <form method="POST" enctype="multipart/form-data" class="composer-form">
                         {% csrf_token %}
                         <label class="sr-only" for="caption">Caption</label>
                         <textarea class="control" id="caption" name="caption" maxlength="500" rows="3" placeholder="What are you working on today?"></textarea>
+                        <div class="field field-wide">
+                            <label for="youtube-url">YouTube link (optional)</label>
+                            <input class="control" id="youtube-url" name="youtube_url" type="url" placeholder="https://youtube.com/watch?v=... or https://youtu.be/..." autocomplete="off">
+                        </div>
                         <div class="composer-actions">
-                            <label class="media-picker" for="post-media"><span aria-hidden="true">＋</span> Add photo or video</label>
-                            <input class="sr-only" id="post-media" name="media" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm" required>
+                            <label class="media-picker" for="post-media"><span aria-hidden="true">＋</span> Add photo or video file</label>
+                            <input class="sr-only" id="post-media" name="media" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm">
                             <button class="button button-warm" type="submit">Share post</button>
                         </div>
-                        <p class="composer-file" aria-live="polite">Choose an image or video, up to 100 MB.</p>
-                        <p class="media-disclosure">Media is sent to Google Gemini for automated screening. Its estimate is not proof of authenticity.</p>
+                        <p class="composer-file" aria-live="polite">Choose an image or video, or paste a YouTube link.</p>
+                        <p class="media-disclosure">Uploaded files may be screened automatically. AI screening is an estimate, not proof of authenticity.</p>
                     </form>
                 </section>
             {% endif %}
@@ -95,13 +99,26 @@
                         </div>
                         <span class="post-type">{{ post.get_media_type_display }}</span>
                         {% if post.author_id == request.user.id %}
-                            <form method="POST" action="{% url 'delete-post' post.pk %}" onsubmit="return confirm('Delete this post?')">
-                                {% csrf_token %}<button class="post-delete" type="submit" aria-label="Delete your post" title="Delete your post">Delete</button>
-                            </form>
+                            <div class="post-owner-actions">
+                                <a class="post-edit" href="{% url 'edit-post' post.pk %}" aria-label="Edit your post">Edit</a>
+                                <form method="POST" action="{% url 'delete-post' post.pk %}" onsubmit="return confirm('Delete this post?')">
+                                    {% csrf_token %}<button class="post-delete" type="submit" aria-label="Delete your post" title="Delete your post">Delete</button>
+                                </form>
+                            </div>
                         {% endif %}
                     </header>
                     <div class="post-media">
-                        {% if post.media_type == 'video' %}
+                        {% if post.youtube_embed_url %}
+                            <iframe
+                                src="{{ post.youtube_embed_url }}"
+                                title="YouTube video shared by {% if post.author.athlete_profile %}{{ post.author.athlete_profile.full_name }}{% else %}{{ post.author.username }}{% endif %}"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                referrerpolicy="strict-origin-when-cross-origin"
+                                allowfullscreen
+                                loading="lazy"
+                            ></iframe>
+                        {% elif post.media_type == 'video' %}
                             <video controls preload="metadata" playsinline src="{% url 'protected-media' post.media.name %}">Your browser does not support video playback.</video>
                         {% else %}
                             <img src="{% url 'protected-media' post.media.name %}" alt="Photo shared by {% if post.author.athlete_profile %}{{ post.author.athlete_profile.full_name }}{% else %}{{ post.author.username }}{% endif %}" loading="lazy">
@@ -135,7 +152,7 @@
                 <section class="feed-empty panel">
                     <span class="empty-sport-mark">KMP</span>
                     <h2>The feed starts here</h2>
-                    <p>{% if can_post %}Share your first training photo or video with the KhelMP community.{% else %}Player training moments and competition updates will appear here.{% endif %}</p>
+                    <p>{% if can_post %}Share the first training photo, video or community update.{% else %}Player training moments and competition updates will appear here.{% endif %}</p>
                 </section>
             {% endfor %}
             {% if page.has_other_pages %}

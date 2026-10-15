@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | {% if selector_mode %}Find athletes{% else %}Players and friends{% endif %}</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+    <a class="brand" href="{% url 'feed' %}"><img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt=""><span class="brand-copy">KhelMP<small>{% if selector_mode %}Athlete directory{% else %}Player community{% endif %}</small></span></a>
+    <nav class="feed-nav" aria-label="Main navigation">
+        <a class="button button-secondary button-small" href="{% url 'feed' %}">Community feed</a>
+        {% if selector_mode %}<a class="button button-secondary button-small" href="{% url 'dashboard' %}">Selector dashboard</a>{% else %}<a class="button button-secondary button-small" href="{% url 'records' %}">My results</a>{% endif %}
+        {% if not selector_mode %}<a class="button button-secondary button-small" href="{% url 'chat-inbox' %}">Messages</a>{% endif %}
+        {% include 'includes/account_avatar.html' %}
+        <a class="button button-secondary button-small" href="{% url 'logout' %}">Sign out</a>
+    </nav>
+</div></header>
+{% include 'includes/global_search_bar.html' %}
+<main class="records-layout people-layout">
+    <div class="dashboard-top"><div><p class="eyebrow eyebrow-dark">KhelMP community</p><h1>{% if selector_mode %}Find athletes{% else %}Players and friends{% endif %}</h1><p>{% if selector_mode %}Search player profiles and open protected selector records.{% else %}Find teammates by player name, sport or district and connect with them.{% endif %}</p></div><span class="sport-tag">{{ people_page.paginator.count }} players</span></div>
+    {% if messages %}<div class="notice-list" aria-live="polite">{% for message in messages %}<div class="notice {% if message.tags == 'error' %}notice-error{% endif %}">{{ message }}</div>{% endfor %}</div>{% endif %}
+
+    {% if not selector_mode and incoming_requests %}
+        <section class="panel people-section" id="friend-requests"><div class="panel-heading"><div><h2>Friend requests</h2><p>{{ incoming_requests|length }} waiting for your response</p></div></div>
+            <div class="people-list">{% for item in incoming_requests %}<article class="person-row"><div class="person-avatar">{{ item.person.athlete_profile.full_name|first|upper }}</div><div class="person-info"><strong>{{ item.person.athlete_profile.full_name }}</strong><span>{{ item.person.athlete_profile.sport_category }} · {{ item.person.athlete_profile.district }}</span></div><div class="person-actions"><form method="POST">{% csrf_token %}<input type="hidden" name="action" value="accept"><input type="hidden" name="connection_id" value="{{ item.connection.pk }}"><button class="button button-small" type="submit">Accept</button></form><form method="POST">{% csrf_token %}<input type="hidden" name="action" value="decline"><input type="hidden" name="connection_id" value="{{ item.connection.pk }}"><button class="button button-secondary button-small" type="submit">Decline</button></form></div></article>{% endfor %}</div>
+        </section>
+    {% endif %}
+
+    {% if not selector_mode %}
+        <section class="panel people-section"><div class="panel-heading"><div><h2>My friends</h2><p>Players you have connected with</p></div><span class="sport-tag">{{ friends|length }}</span></div>
+            {% if friends %}<div class="people-list">{% for item in friends %}<article class="person-row"><div class="person-avatar">{{ item.person.athlete_profile.full_name|first|upper }}</div><div class="person-info"><strong>{{ item.person.athlete_profile.full_name }}</strong><span>{{ item.person.athlete_profile.sport_category }} · {{ item.person.athlete_profile.district }}</span></div><div class="person-actions"><a class="button button-small" href="{% url 'chat-thread' item.person.pk %}">Message</a><form method="POST">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="connection_id" value="{{ item.connection.pk }}"><button class="button button-secondary button-small" type="submit">Remove friend</button></form></div></article>{% endfor %}</div>{% else %}<p class="people-empty">No friends yet. Search players below to connect.</p>{% endif %}
+        </section>
+    {% endif %}
+
+    <section class="panel people-section">
+        <div class="panel-heading"><div><h2>{% if selector_mode %}Athlete search{% else %}Discover players{% endif %}</h2><p>Search by name, sport or district</p></div></div>
+        <form class="people-search" method="GET" role="search"><label class="sr-only" for="player-query">Search players</label><input class="control" id="player-query" name="q" type="search" value="{{ search_query }}" maxlength="80" placeholder="e.g. football, Bhopal or player name"><button class="button button-warm" type="submit">Search</button>{% if search_query %}<a class="button button-secondary" href="{% url 'people' %}">Clear</a>{% endif %}</form>
+        <div class="people-list">
+            {% for person in players %}
+                <article class="person-row">
+                    <div class="person-avatar">{% if person.athlete_profile.passport_photo %}<img src="{% url 'protected-media' person.athlete_profile.passport_photo.name %}" alt="">{% else %}{{ person.athlete_profile.full_name|first|upper }}{% endif %}</div>
+                    <div class="person-info"><strong>{{ person.athlete_profile.full_name }}</strong><span>{{ person.athlete_profile.sport_category }}{% if person.athlete_profile.specialization %} · {{ person.athlete_profile.specialization }}{% endif %} · {{ person.athlete_profile.district }}</span></div>
+                    {% if selector_mode %}
+                        <div class="person-actions"><a class="button button-secondary button-small" href="{% url 'athlete-record' person.athlete_profile.pk %}">Open selector record</a></div>
+                    {% else %}
+                        <div class="person-actions">
+                            {% if person.connection_state == 'friend' %}<a class="button button-small" href="{% url 'chat-thread' person.pk %}">Message</a>
+                            {% elif person.connection_state == 'sent' %}<span class="friend-status">Request sent</span>
+                            {% elif person.connection_state == 'incoming' %}<a class="button button-small" href="#friend-requests">Respond to request</a>
+                            {% else %}<form method="POST">{% csrf_token %}<input type="hidden" name="action" value="send"><input type="hidden" name="target_id" value="{{ person.pk }}"><input type="hidden" name="q" value="{{ search_query }}"><button class="button button-small" type="submit">Add friend</button></form>{% endif %}
+                        </div>
+                    {% endif %}
+                </article>
+            {% empty %}<p class="people-empty">{% if search_query %}No players match “{{ search_query }}”. Try another name, sport or district.{% else %}No player profiles are available yet.{% endif %}</p>{% endfor %}
+        </div>
+        {% if people_page.has_other_pages %}<nav class="feed-pagination" aria-label="Player search pages">{% if people_page.has_previous %}<a class="button button-secondary button-small" href="?q={{ search_query|urlencode }}&page={{ people_page.previous_page_number }}">Previous</a>{% else %}<span></span>{% endif %}<span>Page {{ people_page.number }} of {{ people_page.paginator.num_pages }}</span>{% if people_page.has_next %}<a class="button button-secondary button-small" href="?q={{ search_query|urlencode }}&page={{ people_page.next_page_number }}">Next</a>{% else %}<span></span>{% endif %}</nav>{% endif %}
+    </section>
+    {% include 'includes/gemini_panel.html' %}
+</main>
+{% include 'includes/gemini_widget.html' %}
+</body>
+</html>

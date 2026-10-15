@@ -28,6 +28,27 @@
 			"command": "$git = 'C:\\Program Files\\Git\\cmd\\git.exe'; & $git add -- '.vscode/tasks.json'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git commit -m 'Add VS Code Git tasks' -m 'Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git push origin main; exit $LASTEXITCODE",
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Push free Render demo config",
+			"type": "shell",
+			"command": "$git = 'C:\\Program Files\\Git\\cmd\\git.exe'; & $git add -- 'render.yaml' 'khelmp_master_ecosystem/README.md'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git commit -m 'Use free Render demo database' -m 'Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git push origin main; exit $LASTEXITCODE",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Fix Render WSGI startup",
+			"type": "shell",
+			"command": "$git = 'C:\\Program Files\\Git\\cmd\\git.exe'; & $git add -- 'khelmp_master_ecosystem/khelmp_frontend_django/khelmp_project/wsgi.py'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git commit -m 'Add Django WSGI application entry point' -m 'Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git push origin main; exit $LASTEXITCODE",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Deploy My KhelMP wording",
+			"type": "shell",
+			"command": "$git = 'C:\\Program Files\\Git\\cmd\\git.exe'; & $git add -- 'khelmp_master_ecosystem/khelmp_frontend_django/portal/templates/login.html'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git commit -m 'Change login copy to My KhelMP' -m 'Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $git push origin main; exit $LASTEXITCODE",
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

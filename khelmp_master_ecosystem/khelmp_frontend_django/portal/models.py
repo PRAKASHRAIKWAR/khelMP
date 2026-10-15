@@ -182,9 +182,10 @@ class AthletePost(models.Model):
         UNAVAILABLE = 'unavailable', 'Not screened'
 
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='athlete_posts')
-    media = models.FileField(upload_to='feed/')
+    media = models.FileField(upload_to='feed/', blank=True, null=True)
     media_type = models.CharField(max_length=8, choices=MediaType.choices)
     caption = models.CharField(max_length=500, blank=True)
+    youtube_embed_url = models.URLField(max_length=500, blank=True, default='')
     media_ai_status = models.CharField(max_length=24, choices=MediaAIStatus.choices, default=MediaAIStatus.NOT_REVIEWED)
     media_ai_confidence = models.PositiveSmallIntegerField(null=True, blank=True)
     media_ai_note = models.CharField(max_length=240, blank=True)

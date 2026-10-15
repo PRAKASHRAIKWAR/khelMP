@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
@@ -26,7 +27,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.static import serve
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 from urllib.parse import urlencode
 import secrets
 
@@ -106,6 +107,58 @@ def validated_media_type(uploaded_file, *, allow_video=True):
 	if extension == '.avi' and not (header.startswith(b'RIFF') and header[8:12] == b'AVI '):
 		return None, 'The selected AVI file signature is invalid.'
 	return AthletePost.MediaType.VIDEO, ''
+
+
+def parse_youtube_embed_url(raw_url):
+	if not raw_url:
+		return '', ''
+	candidate = raw_url.strip()
+	if not candidate:
+		return '', ''
+	parsed = urlparse(candidate)
+	host = parsed.netloc.lower()
+	if host.startswith('www.'):
+		host = host[4:]
+	if host in {'youtube.com', 'm.youtube.com', 'youtu.be', 'www.youtube-nocookie.com'}:
+		query = parse_qs(parsed.query)
+		video_id = (query.get('v') or [None])[0] if host != 'youtu.be' else None
+		if host == 'youtu.be':
+			video_id = parsed.path.strip('/').split('/', 1)[0]
+		if not video_id and host != 'youtu.be':
+			match = re.search(r'/shorts/([^/?#]+)', candidate)
+			if match:
+				video_id = match.group(1)
+		if video_id and re.fullmatch(r'[A-Za-z0-9_-]{11}', video_id):
+			return f'https://www.youtube.com/embed/{video_id}?autoplay=1&mute=1&rel=0&playsinline=1', ''
+		return '', 'Use a valid YouTube video link.'
+	return '', 'Use a valid YouTube link from youtube.com or youtu.be.'
+
+
+def screen_post_media(post):
+	if not post.media:
+		post.media_ai_status = AthletePost.MediaAIStatus.UNAVAILABLE
+		post.media_ai_confidence = None
+		post.media_ai_note = 'YouTube links are shared as embedded external video clips.'
+	else:
+		mime_types = {
+			'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
+			'.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime',
+			'.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska',
+		}
+		mime_type = mime_types.get(Path(post.media.name).suffix.lower(), '')
+		try:
+			screening = analyze_uploaded_media(post.media.path, mime_type)
+		except Exception:
+			logger.exception('Post media screening could not start.')
+			screening = {
+				'status': 'unavailable',
+				'confidence': None,
+				'note': 'AI screening could not complete; manual review is recommended.',
+			}
+		post.media_ai_status = screening['status']
+		post.media_ai_confidence = screening['confidence']
+		post.media_ai_note = screening['note']
+	post.save(update_fields=('media_ai_status', 'media_ai_confidence', 'media_ai_note'))
 
 
 def optional_decimal(value, label, minimum, maximum):
@@ -362,44 +415,36 @@ def feed(request):
 	role = account_role(request.user)
 	athlete = getattr(request.user, 'athlete_profile', None)
 	if request.method == 'POST':
-		if role != AccountProfile.Role.PLAYER or athlete is None:
-			messages.error(request, 'Only player accounts can publish feed posts.')
-			return redirect('feed')
-
 		media = request.FILES.get('media')
+		youtube_url = request.POST.get('youtube_url', '').strip()
 		caption = request.POST.get('caption', '').strip()
-		if media is None:
-			messages.error(request, 'Choose a photo or video to publish.')
+		if len(caption) > 500:
+			messages.error(request, 'Captions are limited to 500 characters.')
+			return redirect('feed')
+		if media is not None and youtube_url:
+			messages.error(request, 'Choose either a photo/video file or a YouTube link, not both.')
+			return redirect('feed')
+		if media is None and not youtube_url:
+			messages.error(request, 'Choose a photo, video file, or add a YouTube link to publish.')
 			return redirect('feed')
 
-		media_type, validation_error = validated_media_type(media)
-		if validation_error:
-			messages.error(request, validation_error)
-			return redirect('feed')
-        
-		post = AthletePost.objects.create(author=request.user, media=media, media_type=media_type, caption=caption)
-		mime_types = {
-			'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
-			'.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime',
-			'.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska',
-		}
-		mime_type = mime_types.get(Path(media.name).suffix.lower(), '')
-		try:
-			screening = analyze_uploaded_media(post.media.path, mime_type)
-		except Exception:
-			logger.exception('Post media screening could not start.')
-			screening = {
-				'status': 'unavailable',
-				'confidence': None,
-				'note': 'AI screening could not complete; manual review is recommended.',
-			}
-		post.media_ai_status = screening['status']
-		post.media_ai_confidence = screening['confidence']
-		post.media_ai_note = screening['note']
-		post.save(update_fields=('media_ai_status', 'media_ai_confidence', 'media_ai_note'))
+		post = None
+		if youtube_url:
+			embed_url, youtube_error = parse_youtube_embed_url(youtube_url)
+			if youtube_error:
+				messages.error(request, youtube_error)
+				return redirect('feed')
+			post = AthletePost.objects.create(author=request.user, media_type=AthletePost.MediaType.VIDEO, caption=caption, youtube_embed_url=embed_url)
+		else:
+			media_type, validation_error = validated_media_type(media)
+			if validation_error:
+				messages.error(request, validation_error)
+				return redirect('feed')
+			post = AthletePost.objects.create(author=request.user, media=media, media_type=media_type, caption=caption)
+		screen_post_media(post)
 
 		claim_created = False
-		if athlete.sport_category.strip().casefold() == 'cricket':
+		if athlete and athlete.sport_category.strip().casefold() == 'cricket':
 			current_best = highest_recorded_cricket_score(athlete)
 			score_claim = extract_cricket_score_claim(caption, current_best)
 			if score_claim:
@@ -437,9 +482,104 @@ def feed(request):
 		'role': role,
 		'athlete': athlete,
 		'recent_results': athlete.results.all()[:3] if athlete else [],
-		'can_post': role == AccountProfile.Role.PLAYER and athlete is not None,
+		'can_post': True,
 		'ai_athletes': Athlete.objects.all().order_by('full_name') if role == AccountProfile.Role.SELECTOR else [],
 	})
+
+
+@login_required(login_url='login')
+@require_http_methods(['GET', 'POST'])
+def edit_post(request, post_id):
+	post = get_object_or_404(AthletePost, pk=post_id, author=request.user)
+	score_claim = AIPerformanceClaim.objects.filter(source_post=post).first()
+	caption_locked = bool(score_claim and score_claim.status != AIPerformanceClaim.Status.PENDING)
+	caption_value = post.caption
+	youtube_value = ''
+
+	def render_editor(status=200):
+		return render(request, 'post_edit.html', {
+			'post': post,
+			'score_claim': score_claim,
+			'caption_locked': caption_locked,
+			'caption_value': caption_value,
+			'youtube_value': youtube_value,
+		}, status=status)
+
+	if request.method == 'GET':
+		return render_editor()
+
+	caption = request.POST.get('caption', '').strip()
+	media = request.FILES.get('media')
+	youtube_url = request.POST.get('youtube_url', '').strip()
+	caption_value = post.caption if caption_locked else caption
+	youtube_value = youtube_url
+	if caption_locked and caption != post.caption:
+		messages.error(request, 'This caption is locked while its selector-reviewed score claim is on record.')
+		return render_editor(400)
+	if len(caption) > 500:
+		messages.error(request, 'Captions are limited to 500 characters.')
+		return render_editor(400)
+	if media is not None and youtube_url:
+		messages.error(request, 'Choose either a replacement file or a YouTube link, not both.')
+		return render_editor(400)
+
+	replacement_type = None
+	embed_url = ''
+	if youtube_url:
+		embed_url, youtube_error = parse_youtube_embed_url(youtube_url)
+		if youtube_error:
+			messages.error(request, youtube_error)
+			return render_editor(400)
+	elif media is not None:
+		replacement_type, validation_error = validated_media_type(media)
+		if validation_error:
+			messages.error(request, validation_error)
+			return render_editor(400)
+
+	old_media_name = post.media.name if post.media else ''
+	old_media_storage = post.media.storage if post.media else None
+	caption_changed = caption != post.caption
+	post.caption = caption
+	if youtube_url:
+		post.media = None
+		post.media_type = AthletePost.MediaType.VIDEO
+		post.youtube_embed_url = embed_url
+	elif media is not None:
+		post.media = media
+		post.media_type = replacement_type
+		post.youtube_embed_url = ''
+	post.save()
+
+	if media is not None or youtube_url:
+		screen_post_media(post)
+		if old_media_name and old_media_storage and old_media_name != (post.media.name if post.media else ''):
+			old_media_storage.delete(old_media_name)
+
+	if caption_changed and not caption_locked:
+		athlete = score_claim.athlete if score_claim else getattr(request.user, 'athlete_profile', None)
+		if athlete and athlete.sport_category.strip().casefold() == 'cricket':
+			score = extract_cricket_score_claim(caption, highest_recorded_cricket_score(athlete))
+			if score_claim:
+				if score:
+					score_claim.runs = score['runs']
+					score_claim.balls = score['balls']
+					score_claim.is_high_score_candidate = score['is_high_score_candidate']
+					score_claim.save(update_fields=('runs', 'balls', 'is_high_score_candidate'))
+				else:
+					score_claim.delete()
+			elif score:
+				AIPerformanceClaim.objects.create(
+					athlete=athlete,
+					source_post=post,
+					runs=score['runs'],
+					balls=score['balls'],
+					is_high_score_candidate=score['is_high_score_candidate'],
+				)
+		elif score_claim:
+			score_claim.delete()
+
+	messages.success(request, 'Your post has been updated.')
+	return redirect(f'/feed/#post-{post.pk}')
 
 
 @login_required(login_url='login')

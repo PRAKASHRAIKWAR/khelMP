@@ -1,0 +1,40 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KhelMP | Selector application</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+    <a class="brand" href="{% url 'home' %}"><img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt=""><span class="brand-copy">KhelMP<small>Selector access review</small></span></a>
+    <a class="button button-secondary button-small" href="{% url 'login' %}">Sign in</a>
+</div></header>
+<main class="account-layout">
+    <section class="account-intro">
+        <p class="eyebrow">Selector verification</p>
+        <h1>Request selector access.</h1>
+        <p>Applications are reviewed by a KhelMP administrator. Approved selectors receive a unique code linked to their email.</p>
+    </section>
+    <section class="account-panel">
+        <h2>Selector application</h2>
+        <p class="account-subtitle">Provide official affiliation details for manual review.</p>
+        {% if messages %}<div class="notice-list" aria-live="polite">{% for message in messages %}<div class="notice {% if message.tags == 'error' %}notice-error{% endif %}">{{ message }}</div>{% endfor %}</div>{% endif %}
+        <form class="account-form" method="POST">
+            {% csrf_token %}
+            <div class="field"><label for="full_name">Full name</label><input class="control" id="full_name" name="full_name" maxlength="160" autocomplete="name" required></div>
+            <div class="field"><label for="email">Official email</label><input class="control" id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
+            <div class="field"><label for="organization">Organization / association</label><input class="control" id="organization" name="organization" maxlength="180" placeholder="Sports department, federation or club" required></div>
+            <div class="field"><label for="position">Official role</label><input class="control" id="position" name="position" maxlength="120" placeholder="e.g. district coach, association selector" required></div>
+            <div class="field"><label for="official_website">Official organization website</label><input class="control" id="official_website" name="official_website" type="url" maxlength="200" placeholder="https://..." ></div>
+            <div class="field"><label for="reason">Why do you need selector access?</label><textarea class="control" id="reason" name="reason" rows="4" maxlength="1200" required></textarea></div>
+            <button class="button button-warm" type="submit">Submit for admin review</button>
+        </form>
+        <p class="account-switch">Already approved? <a href="{% url 'register' %}?role=selector">Enter your invite code</a></p>
+    </section>
+</main>
+{% include 'includes/gemini_widget.html' %}
+</body>
+</html>

@@ -499,7 +499,8 @@ input[type="file"]::file-selector-button {
 .post-byline span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .post-type { margin-left: auto; padding: 4px 7px; background: #edf2ed; color: var(--forest); font-size: 9px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
 .post-media { width: 100%; max-height: 650px; overflow: hidden; background: #17241f; }
-.post-media img, .post-media video { width: 100%; max-height: 650px; display: block; object-fit: contain; }
+.post-media img, .post-media video, .post-media iframe { width: 100%; max-height: 650px; display: block; object-fit: contain; }
+.post-media iframe { aspect-ratio: 16 / 9; height: auto; min-height: 260px; background: #000; }
 .post-caption { margin: 0; padding: 12px 16px 4px; color: #34463e; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
 .post-caption strong { margin-right: 5px; color: var(--ink); }
 .post-detail { margin: 4px 16px 13px; padding: 9px 10px; background: #f3f6f1; color: var(--muted); font-size: 11px; line-height: 1.5; }
@@ -514,7 +515,28 @@ input[type="file"]::file-selector-button {
 .score-claim-note { border-left: 3px solid var(--orange); }
 .post-avatar { overflow: hidden; }
 .post-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.post-owner-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.post-edit { border: 1px solid var(--line); padding: 4px 8px; background: #fff; color: var(--forest); font-size: 10px; font-weight: 800; text-decoration: none; }
+.post-edit:hover { border-color: #a9bcae; background: #f4f7f3; }
 .post-delete { border: 0; padding: 5px 7px; background: transparent; color: #8b4940; font-size: 10px; font-weight: 800; cursor: pointer; }
+.post-edit-layout { width: min(720px, calc(100% - 32px)); margin: 36px auto 64px; }
+.post-edit-panel { overflow: hidden; }
+.post-edit-heading { padding: 24px 26px 18px; border-bottom: 1px solid var(--line); }
+.post-edit-kicker { color: var(--forest); font-size: 10px; font-weight: 900; letter-spacing: .12em; }
+.post-edit-heading h1 { margin: 5px 0 3px; font-family: Georgia, "Times New Roman", serif; font-size: 27px; font-weight: 600; }
+.post-edit-heading p { max-width: 540px; margin: 0; color: var(--muted); font-size: 12px; }
+.post-edit-current { padding: 18px 26px 0; }
+.post-edit-current > .post-edit-kicker { display: block; margin-bottom: 8px; }
+.post-edit-current .post-media { max-height: 340px; }
+.post-edit-current .post-media img, .post-edit-current .post-media video { max-height: 340px; }
+.post-edit-current .post-media iframe { min-height: 190px; }
+.post-edit-no-media { margin: 0; padding: 24px; color: var(--muted); font-size: 12px; text-align: center; }
+.post-edit-form { display: grid; gap: 16px; padding: 20px 26px 26px; }
+.post-edit-form .field { display: grid; gap: 6px; }
+.post-edit-form .field label { color: #33443e; font-size: 12px; font-weight: 800; }
+.post-edit-form textarea.control { min-height: 96px; }
+.post-edit-form textarea[readonly] { background: #f3f5f2; color: #53635b; cursor: not-allowed; }
+.post-edit-actions { display: flex; justify-content: flex-end; gap: 9px; padding-top: 4px; }
 .post-interactions { display: flex; align-items: center; gap: 14px; padding: 9px 16px; border-top: 1px solid #edf0ed; }
 .like-button { border: 0; padding: 5px 0; background: transparent; color: var(--forest); font-size: 12px; font-weight: 900; cursor: pointer; }
 .like-button.is-liked { color: #bd4c38; }
@@ -703,6 +725,15 @@ input[type="file"]::file-selector-button {
     .post-composer { padding: 14px; }
     .composer-actions { align-items: flex-start; flex-direction: column; }
     .composer-actions .button { width: 100%; }
+    .post-owner-actions { gap: 3px; }
+    .post-edit { padding: 4px 6px; }
+    .post-edit-layout { width: calc(100% - 24px); margin: 16px auto 36px; }
+    .post-edit-heading { padding: 18px 16px 14px; }
+    .post-edit-heading h1 { font-size: 24px; }
+    .post-edit-current { padding: 14px 16px 0; }
+    .post-edit-form { gap: 13px; padding: 16px; }
+    .post-edit-actions { flex-direction: column-reverse; }
+    .post-edit-actions .button { width: 100%; }
     .feed-nav { gap: 7px; }
     .feed-user { display: none; }
     .account-chip { gap: 0; padding: 2px; border: 0; background: transparent; }
