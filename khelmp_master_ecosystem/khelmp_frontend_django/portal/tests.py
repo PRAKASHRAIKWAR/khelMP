@@ -1,9 +1,8 @@
 from io import BytesIO
 import os
-import re
-import smtplib
 from datetime import timedelta
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
@@ -20,7 +19,8 @@ from PIL import Image
 from unittest.mock import patch
 
 from .admin import SelectorApplicationAdmin
-from .models import AccountProfile, AdminBootstrapState, Athlete, AthletePost, AthleteResult, AIPerformanceClaim, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
+from .login_captcha import SESSION_KEY, issue_login_captcha
+from .models import AccountProfile, AdminBootstrapState, Athlete, AthletePost, AthleteResult, AIPerformanceClaim, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 
 
 User = get_user_model()
@@ -406,14 +406,28 @@ class LoginIdentifierTests(TestCase):
             sport_category='Hockey',
         )
 
+    def set_login_captcha(self, code):
+        request = SimpleNamespace(session={})
+        with patch('portal.login_captcha.secrets.choice', side_effect=list(code)):
+            issue_login_captcha(request)
+        session = self.client.session
+        session[SESSION_KEY] = request.session[SESSION_KEY]
+        session.save()
+
     def test_homepage_shows_login(self):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Sign in')
         self.assertContains(response, 'Email / Mobile / Username')
+        self.assertContains(response, 'Enter the code shown in the image')
+        self.assertContains(response, 'Random six-digit sign-in code')
+        self.assertNotContains(response, 'name="captcha" value=')
         self.assertContains(response, 'Create an account')
         self.assertContains(response, 'Forgot password?')
         self.assertNotContains(response, 'Ask Gemini')
+        challenge = self.client.session[SESSION_KEY]
+        self.assertEqual(set(challenge), {'nonce', 'signature'})
+        self.assertEqual(len(challenge['signature']), 64)
 
     def test_authenticated_homepage_redirects_to_member_feed(self):
         self.client.force_login(self.user)
@@ -435,11 +449,43 @@ class LoginIdentifierTests(TestCase):
     def test_email_mobile_and_username_can_sign_in(self):
         for identifier in (self.user.email, '9876543210', self.user.username):
             self.client.logout()
+            self.set_login_captcha('111111')
             response = self.client.post('/login/', {
                 'username': identifier,
                 'password': 'Test-Only-Password-2026!',
+                'captcha': '111111',
             })
             self.assertRedirects(response, '/feed/')
+
+    def test_missing_or_incorrect_captcha_prevents_password_login(self):
+        for captcha in ('', '000000'):
+            with self.subTest(captcha=captcha):
+                self.set_login_captcha('111111')
+                response = self.client.post('/login/', {
+                    'username': self.user.username,
+                    'password': 'Test-Only-Password-2026!',
+                    'captcha': captcha,
+                })
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_login_captcha_is_consumed_after_use(self):
+        self.set_login_captcha('111111')
+        successful_login = self.client.post('/login/', {
+            'username': self.user.username,
+            'password': 'Test-Only-Password-2026!',
+            'captcha': '111111',
+        })
+        self.assertRedirects(successful_login, '/feed/')
+
+        self.client.logout()
+        reused_captcha = self.client.post('/login/', {
+            'username': self.user.username,
+            'password': 'Test-Only-Password-2026!',
+            'captcha': '111111',
+        })
+        self.assertEqual(reused_captcha.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
 
     def test_profile_photo_appears_in_signed_in_header(self):
         with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
@@ -507,113 +553,28 @@ class GoogleSearchVisibilityTests(TestCase):
         self.assertContains(response, 'Disallow: /secure-media/')
 
 
-@override_settings(
-    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-    EMAIL_HOST_USER='sender@gmail.com',
-    EMAIL_HOST_PASSWORD='test-app-password',
-    DEFAULT_FROM_EMAIL='sender@gmail.com',
-)
 class EmailOTPTests(TestCase):
     def setUp(self):
         cache.clear()
         mail.outbox.clear()
 
-    def create_user(self, email='email-player@example.com', active=True):
-        return User.objects.create_user(
-            username='email-otp-player',
-            email=email,
-            password='Test-Only-Password-2026!',
-            is_active=active,
-        )
+    def test_email_otp_send_endpoint_is_disabled(self):
+        response = self.client.post('/otp/email/send/', {'email': 'member@example.com'})
 
-    def request_code(self, email='email-player@example.com'):
-        return self.client.post('/otp/email/send/', {'email': email})
+        self.assertEqual(response.status_code, 410)
+        self.assertFalse(response.json()['ok'])
+        self.assertEqual(mail.outbox, [])
 
-    def test_registered_user_can_sign_in_with_hashed_one_time_email_otp(self):
-        user = self.create_user()
-        sent = self.request_code()
-        self.assertEqual(sent.status_code, 200)
-        self.assertEqual(len(mail.outbox), 1)
-        code = re.search(r'\b(\d{6})\b', mail.outbox[0].body).group(1)
-        challenge = EmailOTP.objects.get(email=user.email)
-        self.assertNotEqual(challenge.code_hash, code)
-        self.assertNotIn(code, sent.content.decode())
-
+    def test_email_otp_cannot_sign_in(self):
         response = self.client.post('/login/', {
             'auth_method': 'email_otp',
-            'email': user.email,
-            'email_otp': code,
-        })
-
-        self.assertRedirects(response, '/feed/')
-        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
-        challenge.refresh_from_db()
-        self.assertIsNotNone(challenge.consumed_at)
-
-    def test_unknown_and_registered_emails_get_same_send_response(self):
-        self.create_user()
-        registered = self.request_code()
-        cache.clear()
-        unknown = self.request_code('unknown@example.com')
-
-        self.assertEqual(registered.status_code, unknown.status_code)
-        self.assertEqual(registered.json()['message'], unknown.json()['message'])
-        self.assertEqual(len(mail.outbox), 1)
-
-    def test_email_otp_send_is_rate_limited(self):
-        self.create_user()
-        first = self.request_code()
-        second = self.request_code()
-        self.assertEqual(first.status_code, 200)
-        self.assertEqual(second.status_code, 429)
-        self.assertEqual(len(mail.outbox), 1)
-
-    def test_expired_email_otp_cannot_sign_in(self):
-        user = self.create_user()
-        self.request_code()
-        challenge = EmailOTP.objects.get(email=user.email)
-        challenge.expires_at = timezone.now() - timedelta(seconds=1)
-        challenge.save(update_fields=('expires_at',))
-        code = re.search(r'\b(\d{6})\b', mail.outbox[0].body).group(1)
-
-        response = self.client.post('/login/', {
-            'auth_method': 'email_otp',
-            'email': user.email,
-            'email_otp': code,
+            'email': 'member@example.com',
+            'email_otp': '123456',
         })
 
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('_auth_user_id', self.client.session)
-
-    def test_email_otp_allows_at_most_five_incorrect_attempts(self):
-        user = self.create_user()
-        self.request_code()
-        challenge = EmailOTP.objects.get(email=user.email)
-        valid_code = re.search(r'\b(\d{6})\b', mail.outbox[0].body).group(1)
-        for _ in range(5):
-            self.client.post('/login/', {
-                'auth_method': 'email_otp',
-                'email': user.email,
-                'email_otp': '000000' if valid_code != '000000' else '000001',
-            })
-
-        self.assertEqual(EmailOTP.objects.get(pk=challenge.pk).attempts, 5)
-        response = self.client.post('/login/', {
-            'auth_method': 'email_otp',
-            'email': user.email,
-            'email_otp': valid_code,
-        })
-
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn('_auth_user_id', self.client.session)
-
-    def test_email_delivery_failure_invalidates_the_challenge(self):
-        self.create_user()
-        with patch('portal.otp.send_mail', side_effect=smtplib.SMTPException('SMTP unavailable')):
-            response = self.request_code()
-
-        self.assertEqual(response.status_code, 503)
-        self.assertIsNotNone(EmailOTP.objects.get().consumed_at)
+        self.assertContains(response, 'OTP sign-in is unavailable')
 
 
 @override_settings(DEBUG=True)
@@ -680,16 +641,19 @@ class MobileOTPTests(TestCase):
         self.assertIsNotNone(challenge.consumed_at)
 
     def test_verified_mobile_can_sign_in_with_one_time_otp(self):
-        user = self.create_player()
+        self.create_player()
         sent = self.request_code('9876543210', PhoneOTP.Purpose.LOGIN)
-        self.assertEqual(sent.status_code, 200)
+        self.assertEqual(sent.status_code, 410)
+        self.assertFalse(sent.json()['ok'])
+        self.assertFalse(PhoneOTP.objects.exists())
         response = self.client.post('/login/', {
             'auth_method': 'otp',
             'mobile_number': '9876543210',
-            'mobile_otp': sent.json()['development_code'],
+            'mobile_otp': '123456',
         })
-        self.assertRedirects(response, '/feed/')
-        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertContains(response, 'OTP sign-in is unavailable')
 
     def test_invalid_signup_otp_does_not_create_account(self):
         self.request_code('9876543211', PhoneOTP.Purpose.SIGNUP)

@@ -16,7 +16,6 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.core.validators import validate_email
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q
@@ -26,16 +25,18 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.static import serve
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from urllib.parse import urlencode
 import secrets
 
 from .ai import answer_sports_question, create_scout_insight
 from .forms import AdminAccountCreationForm, AdminBootstrapForm
-from .models import AccountProfile, AdminBootstrapState, AIPerformanceClaim, Athlete, AthletePost, AthleteResult, EmailOTP, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
+from .models import AccountProfile, AdminBootstrapState, AIPerformanceClaim, Athlete, AthletePost, AthleteResult, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 from .ai import analyze_uploaded_media, extract_cricket_score_claim
  
-from .otp import OTPDeliveryError, OTPError, issue_email_otp, issue_phone_otp, local_mobile_number, normalize_mobile, verify_email_otp, verify_phone_otp
+from .otp import OTPDeliveryError, OTPError, issue_phone_otp, local_mobile_number, normalize_mobile, verify_phone_otp
+from .login_captcha import consume_login_captcha, issue_login_captcha
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -137,47 +138,27 @@ def account_role(user):
 	return profile.role
 
 
+@never_cache
 def login_user(request):
 	if request.user.is_authenticated:
 		return redirect('feed')
+
+	def render_login(form):
+		return render(request, 'login.html', {
+			'form': form,
+			'google_site_verification': settings.GOOGLE_SITE_VERIFICATION,
+			'login_captcha_image': issue_login_captcha(request),
+		})
+
 	if request.method == 'POST':
-		if request.POST.get('auth_method') == 'email_otp':
-			email = request.POST.get('email', '').strip().casefold()
-			if email and verify_email_otp(email, request.POST.get('email_otp', '')):
-				matching_users = User.objects.filter(email__iexact=email, is_active=True)
-				user = matching_users.first() if matching_users.count() == 1 else None
-				if user:
-					login(request, user)
-					account_role(user)
-					return redirect('feed')
-			messages.error(request, 'Email address or OTP is invalid, expired, or not linked to an active account.')
-			return render(request, 'login.html', {
-				'form': AuthenticationForm(),
-				'google_site_verification': settings.GOOGLE_SITE_VERIFICATION,
-			})
-		if request.POST.get('auth_method') == 'otp':
-			mobile = request.POST.get('mobile_number', '')
-			try:
-				canonical_mobile = normalize_mobile(mobile)
-			except OTPError:
-				canonical_mobile = ''
-			if canonical_mobile and verify_phone_otp(canonical_mobile, request.POST.get('mobile_otp', ''), PhoneOTP.Purpose.LOGIN):
-				athlete = Athlete.objects.filter(mobile_number=local_mobile_number(canonical_mobile), user__isnull=False).select_related('user').first()
-				profile = AccountProfile.objects.filter(mobile=canonical_mobile, mobile_verified=True).select_related('user').first()
-				user = athlete.user if athlete else profile.user if profile else None
-				if user and user.is_active:
-					account_profile, _ = AccountProfile.objects.get_or_create(user=user)
-					account_profile.mobile = canonical_mobile
-					account_profile.mobile_verified = True
-					account_profile.save(update_fields=('mobile', 'mobile_verified'))
-					login(request, user)
-					account_role(user)
-					return redirect('feed')
-			messages.error(request, 'Mobile number or OTP is invalid, expired, or not linked to an active account.')
-			return render(request, 'login.html', {
-				'form': AuthenticationForm(),
-				'google_site_verification': settings.GOOGLE_SITE_VERIFICATION,
-			})
+		captcha_valid = consume_login_captcha(request, request.POST.get('captcha', ''))
+		if request.POST.get('auth_method') in {'email_otp', 'otp'}:
+			messages.error(request, 'OTP sign-in is unavailable. Sign in with your password and the code shown below.')
+			return render_login(AuthenticationForm())
+		if not captcha_valid:
+			messages.error(request, 'The sign-in code is incorrect or expired. Please try again.')
+			return render_login(AuthenticationForm())
+
 		form_data = request.POST.copy()
 		identifier = form_data.get('username', '').strip()
 		matched_user = None
@@ -196,15 +177,16 @@ def login_user(request):
 				return redirect('feed')
 	else:
 		form = AuthenticationForm()
-	return render(request, 'login.html', {
-		'form': form,
-		'google_site_verification': settings.GOOGLE_SITE_VERIFICATION,
-	})
+	return render_login(form)
 
 
 @require_POST
 def send_phone_otp(request):
 	purpose = request.POST.get('purpose', '')
+	if purpose == PhoneOTP.Purpose.LOGIN:
+		return JsonResponse({'ok': False, 'message': 'OTP sign-in is unavailable. Use your password and the sign-in code.'}, status=410)
+	if purpose != PhoneOTP.Purpose.SIGNUP:
+		return JsonResponse({'ok': False, 'message': 'Choose a valid OTP purpose.'}, status=400)
 	try:
 		mobile = normalize_mobile(request.POST.get('mobile_number', ''))
 	except OTPError as error:
@@ -214,15 +196,6 @@ def send_phone_otp(request):
 	if purpose == PhoneOTP.Purpose.SIGNUP:
 		if Athlete.objects.filter(mobile_number=local_mobile).exists() or AccountProfile.objects.filter(mobile=mobile).exists():
 			return JsonResponse({'ok': False, 'message': 'This mobile number is already linked to an account.'}, status=409)
-	elif purpose == PhoneOTP.Purpose.LOGIN:
-		account_exists = (
-			Athlete.objects.filter(mobile_number=local_mobile, user__isnull=False, user__is_active=True).exists()
-			or AccountProfile.objects.filter(mobile=mobile, mobile_verified=True, user__is_active=True).exists()
-		)
-		if not account_exists:
-			return JsonResponse({'ok': True, 'message': 'If the number is registered, a login code will be sent.'})
-	else:
-		return JsonResponse({'ok': False, 'message': 'Choose a valid OTP purpose.'}, status=400)
 
 	remote_address = request.META.get('REMOTE_ADDR', '')
 	phone_key = 'phone-otp:' + hashlib.sha256(mobile.encode()).hexdigest()
@@ -245,41 +218,7 @@ def send_phone_otp(request):
 
 @require_POST
 def send_email_otp(request):
-	email = request.POST.get('email', '').strip().casefold()
-	try:
-		validate_email(email)
-	except ValidationError:
-		return JsonResponse({'ok': False, 'message': 'Enter a valid email address.'}, status=400)
-
-	remote_address = request.META.get('REMOTE_ADDR', '')
-	email_key = 'email-otp:' + hashlib.sha256(email.encode()).hexdigest()
-	address_key = 'email-otp-ip:' + hashlib.sha256(remote_address.encode()).hexdigest()
-	email_limited = not cache.add(email_key, True, timeout=60)
-	address_limited = not cache.add(address_key, True, timeout=5)
-	if email_limited or address_limited:
-		if not email_limited:
-			cache.delete(email_key)
-		if not address_limited:
-			cache.delete(address_key)
-		return JsonResponse({'ok': False, 'message': 'Please wait before requesting another OTP.'}, status=429)
-
-	matching_users = User.objects.filter(email__iexact=email, is_active=True)
-	if matching_users.count() != 1:
-		return JsonResponse({
-			'ok': True,
-			'message': 'If an active account exists for that email, a login code will be sent.',
-		})
-
-	try:
-		issue_email_otp(email)
-	except OTPDeliveryError as error:
-		cache.delete(email_key)
-		cache.delete(address_key)
-		return JsonResponse({'ok': False, 'message': str(error)}, status=503)
-	return JsonResponse({
-		'ok': True,
-		'message': 'If an active account exists for that email, a login code will be sent.',
-	})
+	return JsonResponse({'ok': False, 'message': 'Email OTP sign-in is unavailable. Use your password and the sign-in code.'}, status=410)
 
 
 def register_account(request):

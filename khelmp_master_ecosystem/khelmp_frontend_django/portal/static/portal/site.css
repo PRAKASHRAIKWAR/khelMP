@@ -316,6 +316,9 @@ input[type="file"]::file-selector-button {
 .login-panel > p { margin: 7px 0 24px; color: var(--muted); font-size: 13px; }
 .login-form { display: grid; gap: 16px; }
 .login-form .button { width: 100%; margin-top: 4px; }
+.login-captcha { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.login-captcha img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); }
+.login-captcha a { flex: 0 0 auto; color: var(--forest); font-size: 11px; font-weight: 800; }
 .back-link { display: inline-block; margin-top: 22px; color: var(--forest); font-size: 12px; font-weight: 800; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .account-layout {
     width: min(1040px, calc(100% - 48px));
@@ -338,9 +341,6 @@ input[type="file"]::file-selector-button {
 .account-form .button { width: 100%; margin-top: 3px; }
 .account-switch { margin: 18px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 .account-switch a { color: var(--forest); font-weight: 800; text-underline-offset: 3px; }
-.otp-alternative { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
-.otp-alternative > summary { color: var(--forest); font-size: 12px; font-weight: 900; cursor: pointer; }
-.otp-login-form { margin-top: 13px; }
 .otp-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
 .otp-send { margin-top: 8px; }
 .otp-status { min-height: 18px; margin: 5px 0 0; color: var(--forest); font-size: 11px; overflow-wrap: anywhere; }
