@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 SESSION_KEY = 'login_captcha_challenge'
+SIGNUP_SESSION_KEY = 'signup_captcha_challenge'
 
 
 def _signature(nonce, code):
@@ -17,10 +18,10 @@ def _signature(nonce, code):
     return hmac.new(settings.SECRET_KEY.encode('utf-8'), message, hashlib.sha256).hexdigest()
 
 
-def issue_login_captcha(request):
+def issue_image_captcha(request, session_key=SESSION_KEY):
     code = ''.join(secrets.choice(string.digits) for _ in range(6))
     nonce = secrets.token_urlsafe(24)
-    request.session[SESSION_KEY] = {
+    request.session[session_key] = {
         'nonce': nonce,
         'signature': _signature(nonce, code),
     }
@@ -65,8 +66,8 @@ def issue_login_captcha(request):
     return f'data:image/png;base64,{image_data}'
 
 
-def consume_login_captcha(request, submitted_code):
-    challenge = request.session.pop(SESSION_KEY, None)
+def consume_image_captcha(request, submitted_code, session_key=SESSION_KEY):
+    challenge = request.session.pop(session_key, None)
     if not isinstance(challenge, dict):
         return False
 

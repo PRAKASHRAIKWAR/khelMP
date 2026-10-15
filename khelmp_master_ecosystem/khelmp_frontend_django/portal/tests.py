@@ -19,7 +19,7 @@ from PIL import Image
 from unittest.mock import patch
 
 from .admin import AthletePostAdmin, SelectorApplicationAdmin
-from .login_captcha import SESSION_KEY, issue_login_captcha
+from .login_captcha import SESSION_KEY, SIGNUP_SESSION_KEY, issue_image_captcha
 from .models import AccountProfile, AdminBootstrapState, Athlete, AthletePost, AthleteResult, AIPerformanceClaim, FriendMessage, PhoneOTP, PlayerConnection, PostComment, PostLike, SelectorApplication, SelectorInvite
 
 
@@ -452,7 +452,7 @@ class LoginIdentifierTests(TestCase):
     def set_login_captcha(self, code):
         request = SimpleNamespace(session={})
         with patch('portal.login_captcha.secrets.choice', side_effect=list(code)):
-            issue_login_captcha(request)
+            issue_image_captcha(request)
         session = self.client.session
         session[SESSION_KEY] = request.session[SESSION_KEY]
         session.save()
@@ -625,6 +625,14 @@ class MobileOTPTests(TestCase):
     def setUp(self):
         cache.clear()
 
+    def set_signup_captcha(self, code):
+        request = SimpleNamespace(session={})
+        with patch('portal.login_captcha.secrets.choice', side_effect=list(code)):
+            issue_image_captcha(request, session_key=SIGNUP_SESSION_KEY)
+        session = self.client.session
+        session[SIGNUP_SESSION_KEY] = request.session[SIGNUP_SESSION_KEY]
+        session.save()
+
     def request_code(self, mobile, purpose):
         with patch.dict(os.environ, {
             'TWILIO_ACCOUNT_SID': '',
@@ -656,21 +664,16 @@ class MobileOTPTests(TestCase):
         )
         return user
 
-    def test_player_signup_requires_and_consumes_hashed_mobile_otp(self):
-        sent = self.request_code('9876543210', PhoneOTP.Purpose.SIGNUP)
-        self.assertEqual(sent.status_code, 200)
-        code = sent.json()['development_code']
-        challenge = PhoneOTP.objects.get(mobile='+919876543210')
-        self.assertNotEqual(challenge.code_hash, code)
-
+    def test_public_signup_uses_captcha_without_mobile_otp(self):
+        self.set_signup_captcha('123456')
         response = self.client.post('/register/', {
             'role': 'player',
-            'username': 'new-otp-player',
-            'password1': 'OtpSignupPassword2026!',
-            'password2': 'OtpSignupPassword2026!',
-            'full_name': 'New OTP Player',
+            'username': 'new-captcha-player',
+            'password1': 'CaptchaSignupPassword2026!',
+            'password2': 'CaptchaSignupPassword2026!',
+            'full_name': 'New CAPTCHA Player',
             'mobile_number': '9876543210',
-            'mobile_otp': code,
+            'captcha': '123456',
             'district': 'Bhopal',
             'sport_category': 'Hockey',
         })
@@ -678,10 +681,23 @@ class MobileOTPTests(TestCase):
         self.assertRedirects(response, '/feed/')
         athlete = Athlete.objects.get(mobile_number='9876543210')
         profile = athlete.user.account_profile
-        self.assertTrue(profile.mobile_verified)
+        self.assertFalse(profile.mobile_verified)
         self.assertEqual(profile.mobile, '+919876543210')
-        challenge.refresh_from_db()
-        self.assertIsNotNone(challenge.consumed_at)
+        self.assertFalse(PhoneOTP.objects.filter(mobile=profile.mobile).exists())
+
+    def test_public_signup_shows_mobile_and_captcha_but_no_otp_fields(self):
+        response = self.client.get('/register/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="mobile_number"')
+        self.assertContains(response, 'name="captcha"')
+        self.assertContains(response, 'Random six-digit sign-up code')
+        self.assertNotContains(response, 'name="captcha" value=')
+        self.assertNotContains(response, 'Mobile OTP')
+        self.assertNotContains(response, 'Send verification OTP')
+        challenge = self.client.session[SIGNUP_SESSION_KEY]
+        self.assertEqual(set(challenge), {'nonce', 'signature'})
+        self.assertEqual(len(challenge['signature']), 64)
 
     def test_verified_mobile_can_sign_in_with_one_time_otp(self):
         self.create_player()
@@ -698,8 +714,8 @@ class MobileOTPTests(TestCase):
         self.assertNotIn('_auth_user_id', self.client.session)
         self.assertContains(response, 'OTP sign-in is unavailable')
 
-    def test_invalid_signup_otp_does_not_create_account(self):
-        self.request_code('9876543211', PhoneOTP.Purpose.SIGNUP)
+    def test_invalid_signup_captcha_does_not_create_account(self):
+        self.set_signup_captcha('123456')
         response = self.client.post('/register/', {
             'role': 'player',
             'username': 'bad-otp-player',
@@ -707,13 +723,14 @@ class MobileOTPTests(TestCase):
             'password2': 'OtpSignupPassword2026!',
             'full_name': 'Bad OTP Player',
             'mobile_number': '9876543211',
-            'mobile_otp': '000000',
+            'captcha': '000000',
             'district': 'Bhopal',
             'sport_category': 'Hockey',
         })
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Athlete.objects.filter(mobile_number='9876543211').exists())
-        self.assertEqual(PhoneOTP.objects.get(mobile='+919876543211').attempts, 1)
+        self.assertFalse(PhoneOTP.objects.exists())
+        self.assertContains(response, 'sign-up code is incorrect or expired')
 
     def test_otp_resend_is_rate_limited(self):
         first = self.request_code('9876543212', PhoneOTP.Purpose.SIGNUP)

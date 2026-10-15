@@ -36,7 +36,7 @@ from .models import AccountProfile, AdminBootstrapState, AIPerformanceClaim, Ath
 from .ai import analyze_uploaded_media, extract_cricket_score_claim
  
 from .otp import OTPDeliveryError, OTPError, issue_phone_otp, local_mobile_number, normalize_mobile, verify_phone_otp
-from .login_captcha import consume_login_captcha, issue_login_captcha
+from .login_captcha import SIGNUP_SESSION_KEY, consume_image_captcha, issue_image_captcha
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -147,11 +147,11 @@ def login_user(request):
 		return render(request, 'login.html', {
 			'form': form,
 			'google_site_verification': settings.GOOGLE_SITE_VERIFICATION,
-			'login_captcha_image': issue_login_captcha(request),
+			'login_captcha_image': issue_image_captcha(request),
 		})
 
 	if request.method == 'POST':
-		captcha_valid = consume_login_captcha(request, request.POST.get('captcha', ''))
+		captcha_valid = consume_image_captcha(request, request.POST.get('captcha', ''))
 		if request.POST.get('auth_method') in {'email_otp', 'otp'}:
 			messages.error(request, 'OTP sign-in is unavailable. Sign in with your password and the code shown below.')
 			return render_login(AuthenticationForm())
@@ -228,8 +228,21 @@ def register_account(request):
 	if role not in AccountProfile.Role.values:
 		role = AccountProfile.Role.PLAYER
 
+	def render_register(form):
+		return render(request, 'register.html', {
+			'form': form,
+			'role': role,
+			'signup_captcha_image': issue_image_captcha(request, session_key=SIGNUP_SESSION_KEY),
+		})
+
 	if request.method == 'POST':
 		form = UserCreationForm(request.POST)
+		if not consume_image_captcha(
+			request,
+			request.POST.get('captcha', ''),
+			session_key=SIGNUP_SESSION_KEY,
+		):
+			form.add_error(None, 'The sign-up code is incorrect or expired. Please try again.')
 		full_name = request.POST.get('full_name', '').strip()
 		mobile_number = request.POST.get('mobile_number', '').strip()
 		canonical_mobile = ''
@@ -276,13 +289,6 @@ def register_account(request):
 						).first()
 						if invite is None:
 							form.add_error(None, 'This selector code is invalid, expired, already used, or belongs to another email.')
-					if not form.errors and not verify_phone_otp(
-						canonical_mobile,
-						request.POST.get('mobile_otp', ''),
-						PhoneOTP.Purpose.SIGNUP,
-					):
-						form.add_error(None, 'Verify this mobile number with a current OTP before creating your account.')
-
 					if not form.errors:
 						user = form.save(commit=False)
 						if role == AccountProfile.Role.SELECTOR:
@@ -292,7 +298,7 @@ def register_account(request):
 							user=user,
 							role=role,
 							mobile=canonical_mobile,
-							mobile_verified=True,
+							mobile_verified=False,
 						)
 						if role == AccountProfile.Role.PLAYER:
 							Athlete.objects.create(
@@ -314,7 +320,7 @@ def register_account(request):
 	else:
 		form = UserCreationForm()
 
-	return render(request, 'register.html', {'form': form, 'role': role})
+	return render_register(form)
 
 
 def apply_as_selector(request):

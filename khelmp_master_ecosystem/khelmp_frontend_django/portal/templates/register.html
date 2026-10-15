@@ -55,12 +55,6 @@
                         <div class="field">
                             <label for="mobile_number">Mobile number</label>
                             <input class="control" id="mobile_number" name="mobile_number" type="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" value="{{ request.POST.mobile_number|default:'' }}" required>
-                            <button class="button button-secondary button-small otp-send" type="button" data-send-otp data-otp-url="{% url 'send-phone-otp' %}" data-otp-purpose="signup" data-mobile-input="mobile_number" data-status-id="signup-otp-status">Send verification OTP</button>
-                            <p class="otp-status" id="signup-otp-status" role="status" aria-live="polite"></p>
-                        </div>
-                        <div class="field">
-                            <label for="signup-otp">Mobile OTP</label>
-                            <input class="control" id="signup-otp" name="mobile_otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
                         </div>
                         <div class="field">
                             <label for="district">District</label>
@@ -81,12 +75,6 @@
                     <div class="field">
                         <label for="mobile_number">Mobile number</label>
                         <input class="control" id="mobile_number" name="mobile_number" type="tel" inputmode="tel" autocomplete="tel" value="{{ request.POST.mobile_number|default:'' }}" required>
-                        <button class="button button-secondary button-small otp-send" type="button" data-send-otp data-otp-url="{% url 'send-phone-otp' %}" data-otp-purpose="signup" data-mobile-input="mobile_number" data-status-id="signup-otp-status">Send verification OTP</button>
-                        <p class="otp-status" id="signup-otp-status" role="status" aria-live="polite"></p>
-                    </div>
-                    <div class="field">
-                        <label for="signup-otp">Mobile OTP</label>
-                        <input class="control" id="signup-otp" name="mobile_otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
                     </div>
                     <div class="field">
                         <label for="email">Approved application email</label>
@@ -98,6 +86,14 @@
                         <span class="field-hint">Use the one-time code sent by the KhelMP administrator after approval.</span>
                     </div>
                 {% endif %}
+                <div class="field">
+                    <label for="signup-captcha">Enter the code shown in the image</label>
+                    <div class="login-captcha">
+                        <img src="{{ signup_captcha_image }}" alt="Random six-digit sign-up code" width="220" height="72">
+                        <a href="{% url 'register' %}?role={{ role }}" aria-label="Get a new sign-up code">New code</a>
+                    </div>
+                    <input class="control" id="signup-captcha" name="captcha" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9]{6}" maxlength="6" required>
+                </div>
                 <div class="field">
                     <label for="id_password1">Password</label>
                     <input class="control" id="id_password1" name="password1" type="password" autocomplete="new-password" required>
@@ -115,7 +111,6 @@
             <p class="account-switch">Already registered? <a href="{% url 'login' %}">Sign in</a></p>
         </section>
     </main>
-    <script src="{% static 'portal/account-auth.js' %}" defer></script>
     {% include 'includes/gemini_widget.html' %}
 </body>
 </html>
