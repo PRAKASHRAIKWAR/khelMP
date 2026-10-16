@@ -289,6 +289,9 @@ class AthleteCommunityTests(TestCase):
         self.assertTrue(self.athlete.passport_photo)
 
     def test_player_can_download_kmp_branded_pdf_id_for_own_profile(self):
+        self.athlete.mobile_number = '9123456780'
+        self.athlete.email = 'player.middle@gmail.com'
+        self.athlete.save(update_fields=('mobile_number', 'email'))
         response = self.client.get('/profile/id-card/')
 
         self.assertEqual(response.status_code, 200)
@@ -298,8 +301,20 @@ class AthleteCommunityTests(TestCase):
         self.assertIn(b'KHELMP', response.content)
         self.assertIn(self.athlete.full_name.encode(), response.content)
         self.assertIn(self.athlete.registration_number.encode(), response.content)
+        self.assertIn(b'91******80', response.content)
+        self.assertIn(b'p***********e@gmail.com', response.content)
         self.assertNotIn(self.athlete.mobile_number.encode(), response.content)
+        self.assertNotIn(self.athlete.email.encode(), response.content)
         self.assertContains(self.client.get('/profile/'), 'Download KMP player ID (PDF)')
+
+    def test_id_card_masks_email_and_mobile_for_short_or_missing_values(self):
+        from portal.views import _mask_id_email, _mask_id_mobile
+
+        self.assertEqual(_mask_id_mobile('9876543210'), '98******10')
+        self.assertEqual(_mask_id_mobile('1234'), '****')
+        self.assertEqual(_mask_id_mobile(''), 'Not provided')
+        self.assertEqual(_mask_id_email('player@gmail.com'), 'p****r@gmail.com')
+        self.assertEqual(_mask_id_email(''), 'Not provided')
 
     def test_player_id_pdf_uses_profile_photo_when_available(self):
         self.athlete.passport_photo.save('player-id-photo.png', png_upload(), save=True)

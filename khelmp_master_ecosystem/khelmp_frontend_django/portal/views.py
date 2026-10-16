@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from PIL import Image, UnidentifiedImageError
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader, simpleSplit
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -995,18 +996,23 @@ def download_player_id(request):
 
 	pdf.setFillColor(colors.HexColor('#687771'))
 	pdf.setFont('Helvetica-Bold', 5.5)
-	pdf.drawString(91, 55, 'SPORT')
-	pdf.drawString(171, 55, 'DISTRICT')
+	pdf.drawString(91, 58, 'SPORT')
+	pdf.drawString(171, 58, 'DISTRICT')
 	pdf.setFillColor(colors.HexColor('#17483c'))
 	pdf.setFont('Helvetica-Bold', 8)
-	pdf.drawString(91, 43, simpleSplit(_id_card_text(athlete.sport_category), 'Helvetica-Bold', 8, 72)[0])
-	pdf.drawString(171, 43, simpleSplit(_id_card_text(athlete.district), 'Helvetica-Bold', 8, 60)[0])
+	pdf.drawString(91, 47, simpleSplit(_id_card_text(athlete.sport_category), 'Helvetica-Bold', 8, 72)[0])
+	pdf.drawString(171, 47, simpleSplit(_id_card_text(athlete.district), 'Helvetica-Bold', 8, 60)[0])
+
+	mobile = athlete.mobile_number or request.user.account_profile.mobile or ''
+	email = athlete.email or request.user.email
+	_id_card_field(pdf, 91, 37, 64, 'MOBILE', _mask_id_mobile(mobile))
+	_id_card_field(pdf, 164, 37, 61, 'EMAIL', _mask_id_email(email))
 
 	pdf.setFillColor(colors.HexColor('#e8eee7'))
-	pdf.roundRect(91, 16, 134, 15, 4, fill=1, stroke=0)
+	pdf.roundRect(91, 5, 134, 13, 4, fill=1, stroke=0)
 	pdf.setFillColor(colors.HexColor('#10392f'))
 	pdf.setFont('Helvetica-Bold', 7)
-	pdf.drawCentredString(158, 21, _id_card_text(athlete.registration_number))
+	pdf.drawCentredString(158, 8, _id_card_text(athlete.registration_number))
 	pdf.showPage()
 	pdf.save()
 
@@ -1019,6 +1025,44 @@ def download_player_id(request):
 
 def _id_card_text(value):
 	return str(value).encode('cp1252', errors='replace').decode('cp1252')
+
+
+def _mask_id_mobile(value):
+	digits = ''.join(character for character in str(value) if character.isdigit())
+	if len(digits) <= 4:
+		return '*' * len(digits) if digits else 'Not provided'
+	return f'{digits[:2]}{"*" * (len(digits) - 4)}{digits[-2:]}'
+
+
+def _mask_id_email(value):
+	email = str(value).strip()
+	if '@' not in email:
+		return 'Not provided'
+	local_part, domain = email.rsplit('@', 1)
+	if not local_part or not domain:
+		return 'Not provided'
+	if len(local_part) == 1:
+		masked_local = f'{local_part}***'
+	else:
+		masked_local = f'{local_part[0]}{"*" * max(3, len(local_part) - 2)}{local_part[-1]}'
+	return f'{masked_local}@{domain}'
+
+
+def _id_card_field(pdf, x, label_y, width, label, value):
+	pdf.setFillColor(colors.HexColor('#687771'))
+	pdf.setFont('Helvetica-Bold', 5)
+	pdf.drawString(x, label_y, label)
+	text = _id_card_text(value)
+	font_size = 6
+	while font_size > 4.5 and stringWidth(text, 'Helvetica-Bold', font_size) > width:
+		font_size -= 0.25
+	if stringWidth(text, 'Helvetica-Bold', font_size) > width:
+		while text and stringWidth(text + '...', 'Helvetica-Bold', font_size) > width:
+			text = text[:-1]
+		text += '...'
+	pdf.setFillColor(colors.HexColor('#17483c'))
+	pdf.setFont('Helvetica-Bold', font_size)
+	pdf.drawString(x, label_y - 10, text)
 
 
 @login_required(login_url='login')
