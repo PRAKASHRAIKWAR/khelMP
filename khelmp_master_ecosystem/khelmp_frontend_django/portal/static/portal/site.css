@@ -433,11 +433,20 @@ input[type="file"]::file-selector-button {
 .person-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .person-info { min-width: 0; flex: 1; display: grid; gap: 3px; }
 .person-info strong { overflow: hidden; color: var(--ink); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.person-info strong a { text-decoration: none; }
+.person-info strong a:hover { color: var(--forest); text-decoration: underline; text-underline-offset: 3px; }
 .person-info span { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .person-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
 .person-actions form { margin: 0; }
 .friend-status { padding: 5px 8px; background: #e7efe8; color: var(--forest); font-size: 10px; font-weight: 900; }
 .people-empty { margin: 0; padding: 24px 18px; color: var(--muted); font-size: 12px; }
+.public-profile-layout { max-width: 820px; display: grid; gap: 16px; }
+.public-profile-card { min-height: 280px; display: flex; align-items: center; gap: 30px; padding: 34px; }
+.public-profile-photo { width: 180px; height: 180px; flex: 0 0 180px; display: grid; place-items: center; overflow: hidden; border: 5px solid #eaf0e8; border-radius: 50%; background: var(--forest); color: var(--lime); font-size: 62px; font-weight: 900; }
+.public-profile-photo img { width: 100%; height: 100%; object-fit: cover; }
+.public-profile-copy h1 { margin: 0; color: var(--forest); font-family: Georgia, "Times New Roman", serif; font-size: 34px; font-weight: 600; overflow-wrap: anywhere; }
+.public-profile-copy > p:not(.eyebrow) { margin: 10px 0 4px; color: var(--ink); font-size: 16px; font-weight: 800; }
+.public-profile-copy .profile-location { font-size: 13px; }
 .chat-layout { max-width: 820px; }
 .chat-inbox { overflow: hidden; }
 .chat-conversation {
@@ -672,7 +681,7 @@ input[type="file"]::file-selector-button {
 
 @media (max-width: 620px) {
     .header-inner, .page-shell, .hero-inner { width: min(100% - 28px, 1220px); }
-    .header-inner { min-height: 64px; }
+    .header-inner { min-height: 64px; flex-wrap: wrap; gap: 7px 12px; padding: 8px 0; }
     .site-header { min-height: 64px; }
     .brand-mark { width: 40px; height: 34px; }
     .brand-copy small { font-size: 9px; }
@@ -734,7 +743,9 @@ input[type="file"]::file-selector-button {
     .post-edit-form { gap: 13px; padding: 16px; }
     .post-edit-actions { flex-direction: column-reverse; }
     .post-edit-actions .button { width: 100%; }
-    .feed-nav { gap: 7px; }
+    .feed-nav { width: 100%; flex-wrap: wrap; gap: 6px; }
+    .feed-nav > * { flex: 0 0 auto; }
+    .feed-nav .button { min-height: 36px; padding: 6px 9px; font-size: 10px; }
     .feed-user { display: none; }
     .account-chip { gap: 0; padding: 2px; border: 0; background: transparent; }
     .account-chip:hover { background: transparent; }
@@ -757,6 +768,11 @@ input[type="file"]::file-selector-button {
     .claim-review-actions { align-items: flex-start; flex-direction: column; }
     .comment-form { padding-right: 12px; padding-left: 12px; }
     .records-layout { width: calc(100% - 24px); margin: 16px auto 38px; gap: 12px; }
+    .public-profile-layout { margin-top: 16px; }
+    .public-profile-card { min-height: 0; align-items: flex-start; gap: 16px; padding: 20px 16px; }
+    .public-profile-photo { width: 88px; height: 88px; flex-basis: 88px; border-width: 3px; font-size: 32px; }
+    .public-profile-copy h1 { font-size: 25px; }
+    .public-profile-copy > p:not(.eyebrow) { margin-top: 7px; font-size: 13px; }
     .result-form { grid-template-columns: minmax(0, 1fr); padding: 15px; }
     .result-form .button { width: 100%; }
     .detail-grid { grid-template-columns: minmax(0, 1fr); padding: 4px 15px 14px; }

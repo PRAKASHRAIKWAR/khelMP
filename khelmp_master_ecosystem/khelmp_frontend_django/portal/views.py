@@ -1,3 +1,4 @@
+from io import BytesIO
 import hashlib
 import logging
 import re
@@ -7,6 +8,9 @@ from decimal import Decimal, InvalidOperation
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from PIL import Image, UnidentifiedImageError
+from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader, simpleSplit
+from reportlab.pdfgen import canvas
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -927,6 +931,114 @@ def player_profile(request):
 		messages.success(request, 'Your player profile has been updated.')
 		return redirect('player-profile')
 	return render(request, 'player_profile.html', {'athlete': athlete})
+
+
+@login_required(login_url='login')
+@never_cache
+def download_player_id(request):
+	if account_role(request.user) != AccountProfile.Role.PLAYER:
+		raise Http404
+	athlete = get_object_or_404(Athlete, user=request.user)
+	width, height = 242.6, 153.1
+	buffer = BytesIO()
+	pdf = canvas.Canvas(buffer, pagesize=(width, height), pageCompression=0)
+	pdf.setTitle(f'KhelMP Player ID - {athlete.registration_number}')
+	pdf.setAuthor('KhelMP')
+
+	pdf.setFillColor(colors.HexColor('#f7f9f5'))
+	pdf.roundRect(0, 0, width, height, 10, fill=1, stroke=0)
+	pdf.setFillColor(colors.HexColor('#10392f'))
+	pdf.roundRect(0, height - 48, width, 48, 10, fill=1, stroke=0)
+	pdf.rect(0, height - 48, width, 10, fill=1, stroke=0)
+
+	pdf.setFillColor(colors.HexColor('#17483c'))
+	pdf.setStrokeColor(colors.HexColor('#c7df62'))
+	pdf.setLineWidth(1.3)
+	shield = pdf.beginPath()
+	shield.moveTo(18, 142)
+	shield.lineTo(38, 142)
+	shield.lineTo(38, 130)
+	shield.curveTo(38, 123, 30, 119, 28, 118)
+	shield.curveTo(25, 119, 17, 123, 17, 130)
+	shield.lineTo(17, 141)
+	shield.close()
+	pdf.drawPath(shield, fill=1, stroke=1)
+	pdf.setFillColor(colors.white)
+	pdf.setFont('Helvetica-Bold', 8)
+	pdf.drawCentredString(27.5, 129, 'KMP')
+	pdf.setFillColor(colors.HexColor('#c7df62'))
+	pdf.setFont('Helvetica-Bold', 7)
+	pdf.drawString(47, 135, 'KHELMP')
+	pdf.setFillColor(colors.white)
+	pdf.setFont('Helvetica', 6.5)
+	pdf.drawString(47, 124, 'PLAYER ID CARD')
+
+	if athlete.passport_photo:
+		with athlete.passport_photo.open('rb') as photo_file:
+			pdf.drawImage(
+				ImageReader(photo_file), 17, 38, width=62, height=67,
+				preserveAspectRatio=True, anchor='c', mask='auto',
+			)
+	else:
+		pdf.setFillColor(colors.HexColor('#17483c'))
+		pdf.circle(48, 71.5, 31, fill=1, stroke=0)
+		pdf.setFillColor(colors.HexColor('#c7df62'))
+		pdf.setFont('Helvetica-Bold', 23)
+		pdf.drawCentredString(48, 63, _id_card_text(athlete.full_name[:1].upper()))
+
+	pdf.setFillColor(colors.HexColor('#687771'))
+	pdf.setFont('Helvetica-Bold', 5.5)
+	pdf.drawString(91, 97, 'PLAYER NAME')
+	pdf.setFillColor(colors.HexColor('#1b2925'))
+	name = _id_card_text(athlete.full_name)
+	pdf.setFont('Helvetica-Bold', 10)
+	name_lines = simpleSplit(name, 'Helvetica-Bold', 10, 132)[:2]
+	for index, line in enumerate(name_lines):
+		pdf.drawString(91, 82 - index * 12, line)
+
+	pdf.setFillColor(colors.HexColor('#687771'))
+	pdf.setFont('Helvetica-Bold', 5.5)
+	pdf.drawString(91, 55, 'SPORT')
+	pdf.drawString(171, 55, 'DISTRICT')
+	pdf.setFillColor(colors.HexColor('#17483c'))
+	pdf.setFont('Helvetica-Bold', 8)
+	pdf.drawString(91, 43, simpleSplit(_id_card_text(athlete.sport_category), 'Helvetica-Bold', 8, 72)[0])
+	pdf.drawString(171, 43, simpleSplit(_id_card_text(athlete.district), 'Helvetica-Bold', 8, 60)[0])
+
+	pdf.setFillColor(colors.HexColor('#e8eee7'))
+	pdf.roundRect(91, 16, 134, 15, 4, fill=1, stroke=0)
+	pdf.setFillColor(colors.HexColor('#10392f'))
+	pdf.setFont('Helvetica-Bold', 7)
+	pdf.drawCentredString(158, 21, _id_card_text(athlete.registration_number))
+	pdf.showPage()
+	pdf.save()
+
+	response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+	filename = f'KHELMP-{athlete.registered_at.year}-{athlete.pk:05d}.pdf'
+	response['Content-Disposition'] = f'attachment; filename="{filename}"'
+	response['Cache-Control'] = 'private, no-store'
+	return response
+
+
+def _id_card_text(value):
+	return str(value).encode('cp1252', errors='replace').decode('cp1252')
+
+
+@login_required(login_url='login')
+def public_player_profile(request, user_id):
+	if account_role(request.user) != AccountProfile.Role.PLAYER:
+		raise Http404
+	player = get_object_or_404(
+		User.objects.filter(
+			account_profile__role=AccountProfile.Role.PLAYER,
+			athlete_profile__isnull=False,
+		).select_related('athlete_profile'),
+		pk=user_id,
+	)
+	return render(request, 'public_player_profile.html', {
+		'athlete': player.athlete_profile,
+		'role': AccountProfile.Role.PLAYER,
+	})
 
 
 @login_required(login_url='login')

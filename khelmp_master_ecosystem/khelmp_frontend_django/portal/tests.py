@@ -288,6 +288,77 @@ class AthleteCommunityTests(TestCase):
         self.athlete.refresh_from_db()
         self.assertTrue(self.athlete.passport_photo)
 
+    def test_player_can_download_kmp_branded_pdf_id_for_own_profile(self):
+        response = self.client.get('/profile/id-card/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('attachment; filename="KHELMP-', response['Content-Disposition'])
+        self.assertIn(b'%PDF-', response.content)
+        self.assertIn(b'KHELMP', response.content)
+        self.assertIn(self.athlete.full_name.encode(), response.content)
+        self.assertIn(self.athlete.registration_number.encode(), response.content)
+        self.assertNotIn(self.athlete.mobile_number.encode(), response.content)
+        self.assertContains(self.client.get('/profile/'), 'Download KMP player ID (PDF)')
+
+    def test_player_id_pdf_uses_profile_photo_when_available(self):
+        self.athlete.passport_photo.save('player-id-photo.png', png_upload(), save=True)
+
+        response = self.client.get('/profile/id-card/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b'%PDF-'))
+        self.assertGreater(len(response.content), 1000)
+
+    def test_selector_cannot_download_player_id_pdf(self):
+        selector_client = Client()
+        selector_client.force_login(self.selector)
+
+        response = selector_client.get('/profile/id-card/')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_player_public_profile_shows_only_public_fields(self):
+        self.other_athlete.email = 'private-player@example.test'
+        self.other_athlete.age_group = 'PRIVATE-AGE-GROUP'
+        self.other_athlete.specialization = 'PRIVATE-SPECIALIZATION'
+        self.other_athlete.highest_achievement = 'PRIVATE-ACHIEVEMENT'
+        self.other_athlete.height_cm = 180
+        self.other_athlete.weight_kg = 75
+        self.other_athlete.save()
+
+        response = self.client.get(f'/players/{self.other_player.pk}/profile/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Community Opponent')
+        self.assertContains(response, 'Football')
+        self.assertContains(response, 'Indore district')
+        for private_value in (
+            '9123456781',
+            'private-player@example.test',
+            'PRIVATE-AGE-GROUP',
+            'PRIVATE-SPECIALIZATION',
+            'PRIVATE-ACHIEVEMENT',
+            '180',
+            '75',
+        ):
+            with self.subTest(private_value=private_value):
+                self.assertNotContains(response, private_value)
+
+    def test_public_player_profile_is_only_available_to_players(self):
+        selector_client = Client()
+        selector_client.force_login(self.selector)
+
+        response = selector_client.get(f'/players/{self.other_player.pk}/profile/')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_player_directory_links_to_limited_public_profiles(self):
+        response = self.client.get('/players/')
+
+        self.assertContains(response, f'/players/{self.other_player.pk}/profile/')
+        self.assertNotContains(response, 'specialization')
+
     def test_selector_ai_insight_uses_selected_athlete_posts(self):
         athlete_post = AthletePost.objects.create(
             author=self.other_player,

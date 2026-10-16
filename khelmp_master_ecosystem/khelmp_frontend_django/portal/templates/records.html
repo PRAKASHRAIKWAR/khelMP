@@ -16,6 +16,7 @@
 <main class="records-layout">
     {% include 'includes/gemini_panel.html' %}
     <div class="dashboard-top"><div><p class="eyebrow eyebrow-dark">Performance records</p><h1>{% if is_selector %}Athlete results{% else %}My results{% endif %}</h1><p>{% if is_selector %}Selector-only event results and recorded high scores.{% else %}Your recorded competition results and high scores.{% endif %}</p></div><span class="sport-tag">{{ results|length }} records</span></div>
+    {% if not is_selector %}<a class="button button-warm" href="{% url 'download-player-id' %}">Download KMP player ID (PDF)</a>{% endif %}
     {% if is_selector %}
     <section class="panel result-entry">
         <div class="panel-heading"><div><h2>Add event result</h2><p>Only selectors can add or review the full athlete result ledger.</p></div></div>

@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17483c">
+    <title>KhelMP | {{ athlete.full_name }}</title>
+    <link rel="stylesheet" href="{% static 'portal/site.css' %}">
+</head>
+<body>
+<header class="site-header">
+    <div class="header-inner">
+        <a class="brand" href="{% url 'feed' %}">
+            <img class="brand-mark" src="{% static 'portal/khelmp-emblem.svg' %}" alt="">
+            <span class="brand-copy">KhelMP<small>Player profile</small></span>
+        </a>
+        <nav class="feed-nav" aria-label="Main navigation">
+            <a class="button button-secondary button-small" href="{% url 'feed' %}">Community feed</a>
+            <a class="button button-secondary button-small" href="{% url 'people' %}">Players</a>
+            <a class="button button-secondary button-small" href="{% url 'records' %}">My results</a>
+            <a class="button button-secondary button-small" href="{% url 'chat-inbox' %}">Messages</a>
+            {% include 'includes/account_avatar.html' %}
+            <a class="button button-secondary button-small" href="{% url 'logout' %}">Sign out</a>
+        </nav>
+    </div>
+</header>
+{% include 'includes/global_search_bar.html' %}
+<main class="records-layout public-profile-layout">
+    <a class="link-action" href="{% url 'people' %}">← Back to players</a>
+    <section class="panel public-profile-card" aria-labelledby="public-profile-name">
+        <div class="public-profile-photo">
+            {% if athlete.passport_photo %}
+                <img src="{% url 'protected-media' athlete.passport_photo.name %}" alt="{{ athlete.full_name }} profile photo">
+            {% else %}
+                <span aria-hidden="true">{{ athlete.full_name|first|upper }}</span>
+            {% endif %}
+        </div>
+        <div class="public-profile-copy">
+            <p class="eyebrow eyebrow-dark">Player profile</p>
+            <h1 id="public-profile-name">{{ athlete.full_name }}</h1>
+            <p>{{ athlete.sport_category }}</p>
+            <span class="profile-location">{{ athlete.district }} district</span>
+        </div>
+    </section>
+</main>
+</body>
+</html>

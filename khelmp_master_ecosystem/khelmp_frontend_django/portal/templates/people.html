@@ -32,7 +32,7 @@
 
     {% if not selector_mode %}
         <section class="panel people-section"><div class="panel-heading"><div><h2>My friends</h2><p>Players you have connected with</p></div><span class="sport-tag">{{ friends|length }}</span></div>
-            {% if friends %}<div class="people-list">{% for item in friends %}<article class="person-row"><div class="person-avatar">{{ item.person.athlete_profile.full_name|first|upper }}</div><div class="person-info"><strong>{{ item.person.athlete_profile.full_name }}</strong><span>{{ item.person.athlete_profile.sport_category }} · {{ item.person.athlete_profile.district }}</span></div><div class="person-actions"><a class="button button-small" href="{% url 'chat-thread' item.person.pk %}">Message</a><form method="POST">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="connection_id" value="{{ item.connection.pk }}"><button class="button button-secondary button-small" type="submit">Remove friend</button></form></div></article>{% endfor %}</div>{% else %}<p class="people-empty">No friends yet. Search players below to connect.</p>{% endif %}
+            {% if friends %}<div class="people-list">{% for item in friends %}<article class="person-row"><div class="person-avatar">{{ item.person.athlete_profile.full_name|first|upper }}</div><div class="person-info"><strong><a href="{% url 'public-player-profile' item.person.pk %}">{{ item.person.athlete_profile.full_name }}</a></strong><span>{{ item.person.athlete_profile.sport_category }} · {{ item.person.athlete_profile.district }}</span></div><div class="person-actions"><a class="button button-small" href="{% url 'chat-thread' item.person.pk %}">Message</a><form method="POST">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="connection_id" value="{{ item.connection.pk }}"><button class="button button-secondary button-small" type="submit">Remove friend</button></form></div></article>{% endfor %}</div>{% else %}<p class="people-empty">No friends yet. Search players below to connect.</p>{% endif %}
         </section>
     {% endif %}
 
@@ -43,11 +43,12 @@
             {% for person in players %}
                 <article class="person-row">
                     <div class="person-avatar">{% if person.athlete_profile.passport_photo %}<img src="{% url 'protected-media' person.athlete_profile.passport_photo.name %}" alt="">{% else %}{{ person.athlete_profile.full_name|first|upper }}{% endif %}</div>
-                    <div class="person-info"><strong>{{ person.athlete_profile.full_name }}</strong><span>{{ person.athlete_profile.sport_category }}{% if person.athlete_profile.specialization %} · {{ person.athlete_profile.specialization }}{% endif %} · {{ person.athlete_profile.district }}</span></div>
+                    <div class="person-info"><strong>{% if selector_mode %}{{ person.athlete_profile.full_name }}{% else %}<a href="{% url 'public-player-profile' person.pk %}">{{ person.athlete_profile.full_name }}</a>{% endif %}</strong><span>{{ person.athlete_profile.sport_category }} · {{ person.athlete_profile.district }}</span></div>
                     {% if selector_mode %}
                         <div class="person-actions"><a class="button button-secondary button-small" href="{% url 'athlete-record' person.athlete_profile.pk %}">Open selector record</a></div>
                     {% else %}
                         <div class="person-actions">
+                            <a class="button button-secondary button-small" href="{% url 'public-player-profile' person.pk %}">View profile</a>
                             {% if person.connection_state == 'friend' %}<a class="button button-small" href="{% url 'chat-thread' person.pk %}">Message</a>
                             {% elif person.connection_state == 'sent' %}<span class="friend-status">Request sent</span>
                             {% elif person.connection_state == 'incoming' %}<a class="button button-small" href="#friend-requests">Respond to request</a>
