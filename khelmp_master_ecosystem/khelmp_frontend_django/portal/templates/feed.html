@@ -35,6 +35,11 @@
                 {% if athlete %}
                     <p>{{ athlete.sport_category }}{% if athlete.specialization %} · {{ athlete.specialization }}{% endif %}</p>
                     <span class="profile-location">{{ athlete.district }}{% if athlete.age_group %} · {{ athlete.age_group }}{% endif %}</span>
+                    <div class="feed-player-id">
+                        <span>KMP player ID is ready</span>
+                        <strong>{{ athlete.registration_number }}</strong>
+                        <a class="button button-warm button-small" href="{% url 'download-player-id' %}">Download ID PDF</a>
+                    </div>
                 {% else %}
                     <p>KhelMP selector</p>
                     <span class="profile-location">Community observer</span>

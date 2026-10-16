@@ -657,6 +657,9 @@ class LoginIdentifierTests(TestCase):
                 'captcha': '111111',
             })
             self.assertRedirects(response, '/feed/')
+            feed_response = self.client.get('/feed/')
+            self.assertContains(feed_response, self.user.athlete_profile.registration_number)
+            self.assertContains(feed_response, 'Download ID PDF')
 
     def test_missing_or_incorrect_captcha_prevents_password_login(self):
         for captcha in ('', '000000'):
@@ -842,6 +845,9 @@ class MobileOTPTests(TestCase):
         self.assertFalse(profile.mobile_verified)
         self.assertEqual(profile.mobile, '+919876543210')
         self.assertFalse(PhoneOTP.objects.filter(mobile=profile.mobile).exists())
+        feed_response = self.client.get('/feed/')
+        self.assertContains(feed_response, athlete.registration_number)
+        self.assertContains(feed_response, 'Download ID PDF')
 
     def test_public_signup_shows_mobile_and_captcha_but_no_otp_fields(self):
         response = self.client.get('/register/')

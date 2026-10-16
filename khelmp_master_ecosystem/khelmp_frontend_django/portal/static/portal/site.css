@@ -413,6 +413,10 @@ input[type="file"]::file-selector-button {
 .feed-profile h1 { margin: 0; font-size: 17px; }
 .feed-profile p { margin: 5px 0; color: var(--forest); font-size: 12px; font-weight: 800; }
 .profile-location { color: var(--muted); font-size: 11px; }
+.feed-player-id { display: grid; justify-items: center; gap: 6px; margin-top: 15px; padding: 12px 9px; border: 1px solid #dfe8d2; background: #f4f7ed; }
+.feed-player-id > span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.feed-player-id > strong { color: var(--forest); font-size: 11px; overflow-wrap: anywhere; }
+.feed-player-id .button { margin-top: 2px; }
 .feed-scores { margin-top: 12px; padding: 14px; }
 .feed-scores-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .feed-scores-heading h2 { margin: 0; color: var(--forest); font-size: 12px; }
