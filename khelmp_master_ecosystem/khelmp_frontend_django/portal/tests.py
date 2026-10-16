@@ -630,10 +630,31 @@ class LoginIdentifierTests(TestCase):
         self.assertEqual(set(challenge), {'nonce', 'signature'})
         self.assertEqual(len(challenge['signature']), 64)
 
-    def test_authenticated_homepage_redirects_to_member_feed(self):
+    def test_authenticated_player_homepage_shows_login_before_feed(self):
         self.client.force_login(self.user)
         response = self.client.get('/')
-        self.assertRedirects(response, '/feed/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Sign in')
+        self.assertContains(response, 'Continue to your account')
+        self.assertContains(response, 'Sign out and switch account')
+        self.assertNotContains(response, 'Selector dashboard')
+        self.assertIn('_auth_user_id', self.client.session)
+
+    def test_authenticated_selector_homepage_shows_login_before_selector_feed(self):
+        selector = User.objects.create_user(
+            username='login-selector',
+            password='Test-Only-Password-2026!',
+        )
+        AccountProfile.objects.create(user=selector, role=AccountProfile.Role.SELECTOR)
+        self.client.force_login(selector)
+
+        response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Sign in')
+        self.assertContains(response, 'Continue to your account')
+        self.assertNotContains(response, 'Selector dashboard')
+        self.assertIn('_auth_user_id', self.client.session)
 
     def test_anonymous_visitors_are_redirected_from_member_pages(self):
         for path in ('/feed/', '/players/', '/search/', '/chat/', '/profile/', '/records/', '/dashboard/'):

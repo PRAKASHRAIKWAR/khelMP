@@ -46,6 +46,13 @@
                 <span class="account-kicker">My KhelMP account</span>
                 <h2>Sign in</h2>
                 <p>One KhelMP account opens your community feed.</p>
+                {% if request.user.is_authenticated %}
+                    <div class="notice" role="status">
+                        You are already signed in{% if request.user.athlete_profile %} as {{ request.user.athlete_profile.full_name }}{% else %} as {{ request.user.get_username }}{% endif %}.
+                        <a class="link-action" href="{% url 'feed' %}">Continue to your account</a>
+                        <a class="link-action" href="{% url 'logout' %}">Sign out and switch account</a>
+                    </div>
+                {% endif %}
                 {% if messages %}
                     <div class="notice-list" aria-live="polite">
                         {% for message in messages %}<div class="notice {% if message.tags == 'error' %}notice-error{% endif %}">{{ message }}</div>{% endfor %}

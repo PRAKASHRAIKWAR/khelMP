@@ -197,9 +197,6 @@ def account_role(user):
 
 @never_cache
 def login_user(request):
-	if request.user.is_authenticated:
-		return redirect('feed')
-
 	def render_login(form):
 		return render(request, 'login.html', {
 			'form': form,
