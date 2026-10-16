@@ -934,8 +934,6 @@ def player_profile(request):
 @login_required(login_url='login')
 @never_cache
 def download_player_id(request):
-	if account_role(request.user) != AccountProfile.Role.PLAYER:
-		raise Http404
 	athlete = get_object_or_404(Athlete, user=request.user)
 	width, height = 242.6, 153.1
 	buffer = BytesIO()

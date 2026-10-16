@@ -333,6 +333,16 @@ class AthleteCommunityTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_user_can_download_id_for_their_own_linked_athlete_record(self):
+        self.athlete.user.account_profile.role = AccountProfile.Role.SELECTOR
+        self.athlete.user.account_profile.save(update_fields=('role',))
+
+        response = self.client.get('/profile/id-card/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn(self.athlete.registration_number.encode(), response.content)
+
     def test_player_public_profile_shows_only_public_fields(self):
         self.other_athlete.email = 'private-player@example.test'
         self.other_athlete.age_group = 'PRIVATE-AGE-GROUP'
